@@ -1,0 +1,35 @@
+# ROS2 build artifacts
+build/
+install/
+log/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled files
+*.o
+*.so
+*.a
+*.pyc
+__pycache__/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+
+#cache
+.cache/*
+
+# ros log output
+*.log
+
+a.out 
+main.cpp

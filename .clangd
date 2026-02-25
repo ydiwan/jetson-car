@@ -1,0 +1,15 @@
+CompileFlags:
+    Add: 
+        - -I/opt/ros/jazzy/include
+        - -I/home/car2/ros2_ws/install/video_nodes/include
+        - --std=c++17
+Diagnostics:
+  ClangTidy:
+    # Additional checks to *add* on top of whatever .clang-tidy provides.
+    Add: [clang-analyzer-*]
+
+
+    # Checks to *remove* (silence) no matter what .clang-tidy says.
+    Remove: [modernize-avoid-bind, readability-magic-numbers]
+
+

@@ -1,0 +1,43 @@
+# parser will have to be set up to ignore lines starting with '#'
+# starting from south-east turn, going clockwise
+# south-east turn:
+1167,-90
+661,-90
+469,-83
+318,-40
+139,45
+49,128
+-19,343
+-58,328
+-98,676
+-103,1192
+# end of south-east turn
+
+# middle of bottom lane
+-100,2335
+
+# beginning of south-west turn
+-145,3487
+-145,3996
+-134,4235
+-78,4372
+14,4544
+128,4642
+293,4722
+614,4760
+1127,4762
+# end of south-west turn
+
+# beginning of north-west turn
+2952,4797
+3426,4817
+#3707,3733
+# end of north-west turn
+
+# beginning of north-east turn
+3732,680
+3765,192
+#2675,-92
+# end of north-west turn
+
+1790,-83
