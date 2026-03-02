@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from geometry_msgs.msg import PoseStamped, PoseArray
-from std_msgs.msg import Int32, Float64
+from std_msgs.msg import Int32, Float64, Bool
 
 # Import our Vehicle class
 from .vehicle import Vehicle
@@ -48,11 +48,13 @@ class VehicleControllerNode(Node):
         self.ld_delta_sub = self.create_subscription(Int32, "lane_detect/delta", self.ld_delta_callback, qos_profile_sensor_data)
         self.ld_pos_conf_sub = self.create_subscription(Float64, "/lane_detect/position_confidence", self.ld_pos_conf_callback, qos_profile_sensor_data)
         self.sym_conf_sub = self.create_subscription(Float64, "/lane_detect/symmetry_confidence", self.ld_sym_conf_callback, qos_profile_sensor_data)
-
+        self.tl_sub = self.create_subscription(Bool, '/traffic_light/go_signal', self.tl_callback, qos_profile_sensor_data)
+        
         # 5. State Variables
         self.ld_delta = 0
         self.waypoints = []
         self.current_target_idx = 0
+        self.can_go = True
 
         # 6. Control Loop Timer (100Hz / 10ms)
         self.timer = self.create_timer(0.01, self.control_loop)
@@ -80,9 +82,18 @@ class VehicleControllerNode(Node):
 
     def ld_sym_conf_callback(self, msg: Float64):
         self.car.set_sym_conf(msg.data)
+        
+    def tl_callback(self, msg: Bool):
+        self.can_go = msg.data
 
     # ============== Main Loop ===================================================
     def control_loop(self):
+        
+        if not self.can_go:
+            self.get_logger().info("Red/Yellow Light Detected. Stopping vehicle.")
+            self.car.motor_on(False)
+            return
+        
         if not self.waypoints or self.current_target_idx >= len(self.waypoints):
             self.get_logger().debug("Reached all waypoints, YAY!")
             self.car.update_steering(1500)  # center the steering
