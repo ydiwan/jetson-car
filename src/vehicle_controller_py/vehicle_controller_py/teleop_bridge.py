@@ -28,24 +28,42 @@ class TeleopBridge(Node):
         self.get_logger().info("Teleop Bridge Ready! Drive with W/A/S/D in the teleop terminal.")
 
     def twist_cb(self, msg):
-        # --- STEERING ---
+        # --- STEERING (Front Wheels via Maestro) ---
         # msg.angular.z is positive for Left, negative for Right (-1.0 to 1.0)
-        # Map this to the Maestro Servo range (1000 to 2000, center 1500)
         steer = 1500 + int(msg.angular.z * 500)
         steer = max(1000, min(2000, steer)) # Clamp for safety
         self.servo_controller.set_servo(0, steer) 
 
-        # --- SPEED ---
-        # msg.linear.x is Forward/Backward (0.0 to 1.0)
-        # Map this to your PWM range (0 to 900)
-        speed = int(abs(msg.linear.x) * 1500)
-        speed = max(0, min(900, speed)) # Clamp for safety
+        # --- SPEED & DIFFERENTIAL (Back Wheels via GPIO) ---
+        # Map forward/backward commands to your PWM range (0 to 900)
+        base_speed = int(abs(msg.linear.x) * 900) 
 
-        # Send identical power to both back wheels (Standard RC control)
-        pwm_msg = Int32()
-        pwm_msg.data = speed
-        self.left_pub.publish(pwm_msg)
-        self.right_pub.publish(pwm_msg)
+        if base_speed == 0:
+            left_speed = 0
+            right_speed = 0
+        else:
+            # DIFFERENTIAL MATH:
+            # We will shift up to 40% of the power to the outer wheel during a max turn.
+            # msg.angular.z is positive (Left Turn) -> left wheel slows, right wheel speeds up
+            # msg.angular.z is negative (Right Turn) -> left wheel speeds up, right wheel slows
+            differential_strength = 0.40 
+            offset = int(base_speed * differential_strength * msg.angular.z)
+            
+            left_speed = base_speed - offset
+            right_speed = base_speed + offset
+
+        # Clamp both speeds to prevent sending invalid PWMs to the hardware
+        left_speed = max(0, min(900, left_speed))
+        right_speed = max(0, min(900, right_speed))
+
+        # Publish the independent speeds to the Jetson GPIO node
+        left_msg = Int32()
+        left_msg.data = left_speed
+        self.left_pub.publish(left_msg)
+
+        right_msg = Int32()
+        right_msg.data = right_speed
+        self.right_pub.publish(right_msg)
 
 def main(args=None):
     rclpy.init(args=args)
