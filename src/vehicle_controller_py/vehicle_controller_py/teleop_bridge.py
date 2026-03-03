@@ -33,7 +33,7 @@ class TeleopBridge(Node):
         # Map this to the Maestro Servo range (1000 to 2000, center 1500)
         steer = 1500 + int(msg.angular.z * 500)
         steer = max(1000, min(2000, steer)) # Clamp for safety
-        self.servo_controller.set_target(0, steer) 
+        self.servo_controller.set_servo(0, steer) 
 
         # --- SPEED ---
         # msg.linear.x is Forward/Backward (0.0 to 1.0)

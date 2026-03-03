@@ -93,18 +93,13 @@ class LaneDetectionNode(Node):
             self.pub_img(self.filter_img_pub, results.filter_mask, 'mono8')
 
     def create_pipeline(self, cam_index, width, height, fps):
-        """Constructs the GStreamer pipeline string for Jetson."""
-        pipeline = (
-            f"nvarguscamerasrc sensor-id={cam_index} "
-            f"! video/x-raw(memory:NVMM),width=(int){width},height=(int){height},framerate=(fraction){fps}/1,format=NV12 "
-            f"! nvvidconv "
-            f"! video/x-raw,width=(int){width},height=(int){height},format=(string)BGRx "
+        return (
+            f"v4l2src device=/dev/video{cam_index} "
+            f"! video/x-raw, width=(int){width}, height=(int){height}, framerate=(fraction){fps}/1 "
             f"! videoconvert "
-            f"! video/x-raw,format=BGR "
+            f"! video/x-raw, format=(string)BGR "
             f"! appsink sync=false"
-)
-        self.get_logger().info(f'Pipeline: {pipeline}')
-        return pipeline
+        )
 
 def main(args=None):
     rclpy.init(args=args)
