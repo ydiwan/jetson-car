@@ -18,8 +18,8 @@ class TeleopBridge(Node):
             self.get_logger().info("Connected to Micro Maestro.")
             
             # If your motor driver requires the Maestro "Enable" pins to be pulled high:
-            # self.servo_controller.set_target(1, 8000) 
-            # self.servo_controller.set_target(2, 8000)
+            self.servo_controller.set_servo(1, 8000) 
+            self.servo_controller.set_servo(2, 8000)
         except Exception as e:
             self.get_logger().error(f"Failed to connect to Maestro: {e}")
 
