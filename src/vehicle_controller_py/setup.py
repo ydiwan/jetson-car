@@ -31,6 +31,7 @@ setup(
             'waypoint_loader_node = vehicle_controller_py.waypoint_loader_node:main',
             'vehicle_controller_node = vehicle_controller_py.vehicle_controller_node:main',
             'wp_follower = vehicle_controller_py.wp_follower:main',
+            'teleop_bridge = vehicle_controller_py.teleop_bridge:main',
         ],
     },
 )
