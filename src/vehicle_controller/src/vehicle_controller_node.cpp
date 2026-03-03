@@ -157,6 +157,7 @@ class VehicleControllerNode : public rclcpp::Node {
         if (waypoints_.empty() || current_target_idx_ >= waypoints_.size()) {
             RCLCPP_DEBUG(this->get_logger(), "Reached all waypoints, YAY!");
             car_->update_steering(1500); //center the steering
+            car_->update_speed(0, 0);    // cut off from gpio
             car_->motor_on(false);       //turn off the motors
             return;
         } else {
