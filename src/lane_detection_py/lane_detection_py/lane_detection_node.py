@@ -95,10 +95,10 @@ class LaneDetectionNode(Node):
     def create_pipeline(self, cam_index, width, height, fps):
         """Constructs the GStreamer pipeline string for Jetson."""
         pipeline = (
-            f"nvarguscamerasrc sensor-id={self.camera_index} "
-            f"! video/x-raw(memory:NVMM),width=(int){self.width},height=(int){self.height},framerate=(fraction){self.fps}/1,format=NV12 "
+            f"nvarguscamerasrc sensor-id={cam_index} "
+            f"! video/x-raw(memory:NVMM),width=(int){width},height=(int){height},framerate=(fraction){fps}/1,format=NV12 "
             f"! nvvidconv "
-            f"! video/x-raw,width=(int){self.width},height=(int){self.height},format=(string)BGRx "
+            f"! video/x-raw,width=(int){width},height=(int){height},format=(string)BGRx "
             f"! videoconvert "
             f"! video/x-raw,format=BGR "
             f"! appsink sync=false"
