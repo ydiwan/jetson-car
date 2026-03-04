@@ -55,6 +55,8 @@ class TeleopBridge(Node):
         # Clamp both speeds to prevent sending invalid PWMs to the hardware
         left_speed = max(-900, min(900, left_speed))
         right_speed = max(-900, min(900, right_speed))
+        
+        self.get_logger().info(f"Sending PWM -> Left: {left_speed}, Right: {right_speed}")
 
         # Publish the independent speeds to the Jetson GPIO node
         left_msg = Int32()
