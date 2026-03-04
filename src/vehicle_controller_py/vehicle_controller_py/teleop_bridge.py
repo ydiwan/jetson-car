@@ -8,7 +8,7 @@ class TeleopBridge(Node):
     def __init__(self):
         super().__init__('teleop_bridge')
 
-        # 1. Setup Motor Publishers (Talking to your gpio_node)
+        # Setup Motor Publishers
         self.left_pub = self.create_publisher(Int32, '/gpio/pwm_left', 10)
         self.right_pub = self.create_publisher(Int32, '/gpio/pwm_right', 10)
 
@@ -17,31 +17,29 @@ class TeleopBridge(Node):
             self.servo_controller = MscIf('/dev/ttyACM0')
             self.get_logger().info("Connected to Micro Maestro.")
             
-            # If your motor driver requires the Maestro "Enable" pins to be pulled high:
+            # Set the Maestro 'Enable' pins to HIGH
             self.servo_controller.set_servo(1, 8000) 
             self.servo_controller.set_servo(2, 8000)
         except Exception as e:
             self.get_logger().error(f"Failed to connect to Maestro: {e}")
 
-        # 3. Listen to the keyboard commands
+        # Listen to the keyboard commands
         self.sub = self.create_subscription(Twist, '/cmd_vel', self.twist_cb, 10)
         self.get_logger().info("Teleop Bridge Ready! Drive with W/A/S/D in the teleop terminal.")
 
     def twist_cb(self, msg):
-        # --- 1. STEERING (Inverted: j=Left, l=Right) ---
+        # STEERING (j=Left, l=Right)
         # msg.angular.z: Positive is Left, Negative is Right. 
-        # We subtract the offset from 1500 to flip the direction.
+        # Subtract the offset from 1500 to flip the direction.
         steer = 1500 - int(msg.angular.z * 500)
         steer = max(1000, min(2000, steer)) 
         self.servo_controller.set_servo(0, steer) 
 
-        # --- 2. SPEED (Always Positive / Forward Only) ---
-        # We use abs() again since you want to remove the reverse functionality.
+        # SPEED (Always Positive / Forward Only)
         base_speed = int(abs(msg.linear.x) * 900) 
 
-        # --- 3. SMART ENABLE/DISABLE ---
+        # SMART ENABLE/DISABLE
         # Only kill the motors if BOTH linear movement and turning are zero.
-        # This prevents the "stop while turning" glitch.
         if base_speed == 0 and abs(msg.angular.z) < 0.05:
             left_speed = 0
             right_speed = 0

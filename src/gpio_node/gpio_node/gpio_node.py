@@ -66,14 +66,14 @@ class GPIONode(Node):
     def pwm_right_callback(self, msg):
         duty = msg.data
         
-        # 1. Handle Direction
+        # Handle Direction
         if duty < 0:
             GPIO.output(self.DIR_R, GPIO.LOW)  # Reverse
             duty = abs(duty)
         else:
             GPIO.output(self.DIR_R, GPIO.HIGH) # Forward
             
-        # 2. Constrain and Calculate
+        # Constrain and Calculate
         if duty > 1000:
             duty = 1000
             
@@ -84,14 +84,14 @@ class GPIONode(Node):
     def pwm_left_callback(self, msg):
         duty = msg.data        
         
-        # 1. Handle Direction
+        # Handle Direction
         if duty < 0:
             GPIO.output(self.DIR_L, GPIO.LOW)  # Reverse
             duty = abs(duty)
         else:
             GPIO.output(self.DIR_L, GPIO.HIGH) # Forward
             
-        # 2. Constrain and Calculate
+        # Constrain and Calculate
         if duty > 1000:
             duty = 1000
             

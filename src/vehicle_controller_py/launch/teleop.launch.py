@@ -23,7 +23,7 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # 3. Web Video Server (To view the camera feed on your laptop)
+        # 3. Web Video Server (To view the camera feed)
         Node(
             package='web_video_server',
             executable='web_video_server',
@@ -31,7 +31,7 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # 4. Vision Pipeline (Optional, but lets you see the lane detection while driving)
+        # 4. Vision Pipeline (To see the lane detection while driving)
         Node(
             package='lane_detection_py',
             executable='lane_detection_node',
