@@ -64,42 +64,40 @@ class GPIONode(Node):
 
     
     def pwm_right_callback(self, msg):
-        """
-        Handle right motor PWM commands
-        msg.data expected to be 0-1000 (matching your C++ code)
-        """
         duty = msg.data
         
-        # Constrain
+        # 1. Handle Direction
         if duty < 0:
-            duty = 0
-        elif duty > 1000:
+            GPIO.output(self.DIR_R, GPIO.LOW)  # Reverse
+            duty = abs(duty)
+        else:
+            GPIO.output(self.DIR_R, GPIO.HIGH) # Forward
+            
+        # 2. Constrain and Calculate
+        if duty > 1000:
             duty = 1000
-        
-        # Convert to percentage (0-100)
+            
         duty_percentage = (duty / 1000.0) * 100.0
-        
         self.pwm_right.ChangeDutyCycle(duty_percentage)
-        self.get_logger().debug(f'Right motor PWM: {duty} ({duty_percentage:.1f}%)')
+        self.get_logger().debug(f'Right motor PWM: {msg.data} ({duty_percentage:.1f}%)')
     
     def pwm_left_callback(self, msg):
-        """
-        Handle left motor PWM commands
-        msg.data expected to be 0-1000 (matching your C++ code)
-        """
         duty = msg.data        
         
-        # Constrain
+        # 1. Handle Direction
         if duty < 0:
-            duty = 0
-        elif duty > 1000:
+            GPIO.output(self.DIR_L, GPIO.LOW)  # Reverse
+            duty = abs(duty)
+        else:
+            GPIO.output(self.DIR_L, GPIO.HIGH) # Forward
+            
+        # 2. Constrain and Calculate
+        if duty > 1000:
             duty = 1000
-        
-        # Convert to percentage (0-100)
+            
         duty_percentage = (duty / 1000.0) * 100.0
-        
         self.pwm_left.ChangeDutyCycle(duty_percentage)
-        self.get_logger().debug(f'Left motor PWM: {duty} ({duty_percentage:.1f}%)')
+        self.get_logger().debug(f'Left motor PWM: {msg.data} ({duty_percentage:.1f}%)')
     
 def destroy_node(self):
     """Cleanup GPIO on shutdown"""

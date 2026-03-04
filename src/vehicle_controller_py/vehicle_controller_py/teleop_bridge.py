@@ -36,7 +36,7 @@ class TeleopBridge(Node):
 
         # --- SPEED & DIFFERENTIAL (Back Wheels via GPIO) ---
         # Map forward/backward commands to your PWM range (0 to 900)
-        base_speed = int(abs(msg.linear.x) * 900) 
+        base_speed = int(msg.linear.x * 900) 
 
         if base_speed == 0:
             left_speed = 0
@@ -53,8 +53,8 @@ class TeleopBridge(Node):
             right_speed = base_speed + offset
 
         # Clamp both speeds to prevent sending invalid PWMs to the hardware
-        left_speed = max(0, min(900, left_speed))
-        right_speed = max(0, min(900, right_speed))
+        left_speed = max(-900, min(900, left_speed))
+        right_speed = max(-900, min(900, right_speed))
 
         # Publish the independent speeds to the Jetson GPIO node
         left_msg = Int32()
