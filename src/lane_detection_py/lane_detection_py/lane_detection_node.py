@@ -28,9 +28,9 @@ class LaneDetectionNode(Node):
         self.bridge = CvBridge()
 
         # 3. Create and Open GStreamer Pipeline
-        self.cap = cv2.VideoCapture(self.camera_index)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+        self.cap = cv2.VideoCapture(cam_index)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
         if not self.cap.isOpened():
             self.get_logger().error(f'Failed to open camera with pipeline: {pipeline}')
