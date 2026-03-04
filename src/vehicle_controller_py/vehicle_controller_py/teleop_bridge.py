@@ -28,34 +28,50 @@ class TeleopBridge(Node):
         self.get_logger().info("Teleop Bridge Ready! Drive with W/A/S/D in the teleop terminal.")
 
     def twist_cb(self, msg):
-        # --- STEERING (Front Wheels via Maestro) ---
-        # msg.angular.z is positive for Left, negative for Right (-1.0 to 1.0)
-        steer = 1500 + int(msg.angular.z * 500)
-        steer = max(1000, min(2000, steer)) # Clamp for safety
+        # --- 1. STEERING (Inverted: j=Left, l=Right) ---
+        # msg.angular.z: Positive is Left, Negative is Right. 
+        # We subtract the offset from 1500 to flip the direction.
+        steer = 1500 - int(msg.angular.z * 500)
+        steer = max(1000, min(2000, steer)) 
         self.servo_controller.set_servo(0, steer) 
 
-        # --- SPEED & DIFFERENTIAL (Back Wheels via GPIO) ---
-        # Map forward/backward commands to your PWM range (0 to 900)
-        base_speed = int(msg.linear.x * 900) 
+        # --- 2. SPEED (Always Positive / Forward Only) ---
+        # We use abs() again since you want to remove the reverse functionality.
+        base_speed = int(abs(msg.linear.x) * 900) 
 
-        if base_speed == 0:
+        # --- 3. SMART ENABLE/DISABLE ---
+        # Only kill the motors if BOTH linear movement and turning are zero.
+        # This prevents the "stop while turning" glitch.
+        if base_speed == 0 and abs(msg.angular.z) < 0.05:
             left_speed = 0
             right_speed = 0
-            
-            self.servo_controller.set_servo(1, 0)
+            self.servo_controller.set_servo(1, 0) # Motor OFF
             self.servo_controller.set_servo(2, 0)
         else:
-            self.servo_controller.set_servo(1, 8000)
+            self.servo_controller.set_servo(1, 8000) # Motor ON
             self.servo_controller.set_servo(2, 8000)
-            # DIFFERENTIAL MATH:
-            # We will shift up to 40% of the power to the outer wheel during a max turn.
-            # msg.angular.z is positive (Left Turn) -> left wheel slows, right wheel speeds up
-            # msg.angular.z is negative (Right Turn) -> left wheel speeds up, right wheel slows
-            differential_strength = 0.40 
+            
+            # Differential Math for smoother turns
+            differential_strength = 0.30 
             offset = int(base_speed * differential_strength * msg.angular.z)
             
             left_speed = base_speed - offset
             right_speed = base_speed + offset
+
+        # Final Clamp
+        left_speed = max(0, min(900, left_speed))
+        right_speed = max(0, min(900, right_speed))
+
+        self.get_logger().info(f"Steer: {steer} | L: {left_speed} R: {right_speed}")
+
+        # Publish to GPIO Node
+        left_msg = Int32()
+        left_msg.data = left_speed
+        self.left_pub.publish(left_msg)
+
+        right_msg = Int32()
+        right_msg.data = right_speed
+        self.right_pub.publish(right_msg)
 
         # Clamp both speeds to prevent sending invalid PWMs to the hardware
         left_speed = max(-900, min(900, left_speed))
