@@ -41,7 +41,12 @@ class TeleopBridge(Node):
         if base_speed == 0:
             left_speed = 0
             right_speed = 0
+            
+            self.servo_controller.set_servo(1, 0)
+            self.servo_controller.set_servo(2, 0)
         else:
+            self.servo_controller.set_servo(1, 8000)
+            self.servo_controller.set_servo(2, 8000)
             # DIFFERENTIAL MATH:
             # We will shift up to 40% of the power to the outer wheel during a max turn.
             # msg.angular.z is positive (Left Turn) -> left wheel slows, right wheel speeds up
