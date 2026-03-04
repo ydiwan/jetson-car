@@ -14,7 +14,7 @@ def generate_launch_description():
     video_width = 1280
     
     return LaunchDescription([ 
-        # 1. Standard Web Video Server (C++ Package)
+        # Standard Web Video Server (C++ Package)
         Node(
             package='web_video_server',
             executable='web_video_server',
@@ -22,7 +22,7 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # 2. Lane Detection Node (Python Rewrite)
+        # Lane Detection Node (Python Rewrite)
         Node(
             package='lane_detection_py',
             executable='lane_detection_node',
@@ -54,7 +54,7 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # 3. Waypoint Loader (Python Rewrite)
+        # Waypoint Loader (Python Rewrite)
         Node(
             package='vehicle_controller_py',
             executable='waypoint_loader_node',
@@ -67,7 +67,7 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # 4. Vehicle Controller (Python Rewrite)
+        # Vehicle Controller
         Node(
             package='vehicle_controller_py',
             executable='vehicle_controller_node',
@@ -83,7 +83,7 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # 5. GPIO Node (Python)
+        # GPIO Node 
         Node(
             package='gpio_node',
             executable='gpio_node',
@@ -92,7 +92,7 @@ def generate_launch_description():
             output='screen'
         ),
         
-        # 6. Speedometer Node (Python Rewrite)
+        # Speedometer Node 
         Node(
             package='speedometer_py',
             executable='speedometer_node',

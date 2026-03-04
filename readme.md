@@ -165,12 +165,12 @@ This will launch the teleop node and wait for input from your keyboard.
 
 In a second terminal, run the teleop node that will listen to your keyboard input and publish the corresponding velocity commands to the car.
 ```bash
-ros2 run twist_teleop_keyboard twist_teleop_keyboard
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
 
 The teleop node will only work if you have the `twist_teleop_keyboard` package installed. You can install it using the following command:
 ```bash
-sudo apt install ros-humble-twist-teleop-keyboard
+sudo apt install ros-humble-teleop-twist-keyboard
 ```
 Note: In order to listen to your keyboard inputs, the terminal with `twist_teleop_keyboard` node must be in focus. 
 ## Packages
