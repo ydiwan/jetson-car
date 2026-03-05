@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from geometry_msgs.msg import PoseStamped, PoseArray
-from std_msgs.msg import Int32, Float64, Bool
+from std_msgs.msg import Int32, Float64, String
 
 # Import our Vehicle class
 from .vehicle import Vehicle
@@ -48,7 +48,7 @@ class VehicleControllerNode(Node):
         self.ld_delta_sub = self.create_subscription(Int32, "lane_detect/delta", self.ld_delta_callback, qos_profile_sensor_data)
         self.ld_pos_conf_sub = self.create_subscription(Float64, "/lane_detect/position_confidence", self.ld_pos_conf_callback, qos_profile_sensor_data)
         self.sym_conf_sub = self.create_subscription(Float64, "/lane_detect/symmetry_confidence", self.ld_sym_conf_callback, qos_profile_sensor_data)
-        self.tl_sub = self.create_subscription(Bool, '/traffic_light/go_signal', self.tl_callback, qos_profile_sensor_data)
+        self.tl_sub = self.create_subscription(String, '/traffic_light_state', self.tl_callback, qos_profile_sensor_data)
         
         # 5. State Variables
         self.ld_delta = 0
@@ -83,8 +83,11 @@ class VehicleControllerNode(Node):
     def ld_sym_conf_callback(self, msg: Float64):
         self.car.set_sym_conf(msg.data)
         
-    def tl_callback(self, msg: Bool):
-        self.can_go = msg.data
+    def tl_callback(self, msg: String):
+        if msg.data == "RED":
+            self.can_go = False
+        else:
+            self.can_go = True
 
     # ============== Main Loop ===================================================
     def control_loop(self):

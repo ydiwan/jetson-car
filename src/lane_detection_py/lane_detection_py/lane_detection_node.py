@@ -33,7 +33,7 @@ class LaneDetectionNode(Node):
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
         if not self.cap.isOpened():
-            self.get_logger().error(f'Failed to open camera with pipeline: {pipeline}')
+            self.get_logger().error('Failed to open USB camera')
             return
 
         # 4. Setup Publishers

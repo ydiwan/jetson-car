@@ -23,11 +23,13 @@ class VideoPublisher(Node):
         self.bridge = CvBridge()
         
         # open gstreamer
-        pipeline = self.create_pipeline(cam_index, width, height, fps)
-        self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+        self.cap = cv2.VideoCapture(cam_index)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        self.cap.set(cv2.CAP_PROP_FPS, fps)
         
         if not self.cap.isOpened():
-            self.get_logger().error(f"Failed to open camera with pipeline: {pipeline}")
+            self.get_logger().error('Failed to open USB camera')
             return
             
         self.image_pub = self.create_publisher(Image, 'camera/image_raw', 1)
@@ -48,18 +50,6 @@ class VideoPublisher(Node):
         
         self.get_logger().info(f"Video publisher started at {fps} fps")
         self.get_logger().info("Publishing on: camera/image_raw")
-
-    def create_pipeline(self, cam_index, width, height, fps):
-        """Builds the Jetson-specific hardware acceleration pipeline."""
-        pipeline = (
-            f"nvarguscamerasrc sensor-id={cam_index} "
-            f"! video/x-raw(memory:NVMM),width=(int){width},height=(int){height},framerate=(fraction){fps}/1,format=NV12 "
-            f"! nvvidconv "
-            f"! video/x-raw,width=(int){width},height=(int){height},format=(string)BGRx "
-            f"! appsink sync=false"
-        )
-        self.get_logger().info(f"Pipeline: {pipeline}")
-        return pipeline
 
     def capture_loop(self):
         """Continuously pulls frames from the hardware buffer to prevent lag."""

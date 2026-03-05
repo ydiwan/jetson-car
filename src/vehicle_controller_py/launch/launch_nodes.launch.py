@@ -103,4 +103,12 @@ def generate_launch_description():
             }],
             output='screen'
         ),
+        
+        # Traffic Light Detection Node
+        Node(
+            package='traffic_light_py',
+            executable='traffic_light_node',
+            name='traffic_light_node',
+            output='screen'
+        ),
     ])

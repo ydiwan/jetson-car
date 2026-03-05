@@ -26,8 +26,6 @@ setup(
         'console_scripts': [
             'video_publisher = video_nodes_py.video_publisher_node:main',
             'video_subscriber = video_nodes_py.video_subscriber_node:main',
-            'video_publisher_test = video_nodes_py.video_publisher_node_test:main',
-            'traffic_light = video_nodes_py.traffic_light_node:main',
         ],
     },
 )
