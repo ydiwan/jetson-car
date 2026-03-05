@@ -19,7 +19,7 @@ class ViconSubscriber(Node):
 
         self.get_logger().info('Vicon position subscriber started')
         
-        # Initialize timing variables for latency measurement (if needed later)
+        # Initialize timing variables for latency measurement
         self.last_message_time = time.perf_counter()
 
     def euler_from_quaternion(self, q):
@@ -32,7 +32,7 @@ class ViconSubscriber(Node):
         # Pitch (y-axis rotation)
         sinp = 2.0 * (q.w * q.y - q.z * q.x)
         if abs(sinp) >= 1:
-            pitch = math.copysign(math.pi / 2, sinp) # use 90 degrees if out of range
+            pitch = math.copysign(math.pi / 2, sinp)
         else:
             pitch = math.asin(sinp)
 
@@ -57,7 +57,7 @@ class ViconSubscriber(Node):
         pitch = math.degrees(pitch_rad)
         yaw = math.degrees(yaw_rad)
 
-        # Print position data with minimal formatting (scaled to mm as in original C++)
+        # Print position data with minimal form
         print(
             f"Position: {x * 1000:8.2f} {y * 1000:8.2f} {z * 1000:8.2f} | "
             f"Orientation (deg): Roll={roll:8.3f} Pitch={pitch:8.3f} Yaw={yaw:8.3f}"
