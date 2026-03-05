@@ -23,11 +23,19 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # Web Video Server (To view the camera feed)
+        # Web Video Server
         Node(
             package='web_video_server',
             executable='web_video_server',
             name='web_video_server',
+            output='screen'
+        ),
+        
+        # Traffic Light Detection
+        Node(
+            package='traffic_light_py',
+            executable='traffic_light_node',
+            name='traffic_light_node',
             output='screen'
         ),
     ])

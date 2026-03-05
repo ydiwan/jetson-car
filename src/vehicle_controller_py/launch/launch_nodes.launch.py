@@ -22,7 +22,7 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # Lane Detection Node (Python Rewrite)
+        # Lane Detection Node 
         Node(
             package='lane_detection_py',
             executable='lane_detection_node',
@@ -54,7 +54,7 @@ def generate_launch_description():
             output='screen'
         ),
 
-        # Waypoint Loader (Python Rewrite)
+        # Waypoint Loader 
         Node(
             package='vehicle_controller_py',
             executable='waypoint_loader_node',
