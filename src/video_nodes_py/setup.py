@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'video_publisher = video_nodes_py.video_publisher_node:main',
             'video_subscriber = video_nodes_py.video_subscriber_node:main',
+            'openmv_node = video_nodes_py.openmv_node:main',
         ],
     },
 )
