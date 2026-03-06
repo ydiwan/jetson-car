@@ -30,13 +30,16 @@ class OpenMVNode(Node):
     def read_serial_stream(self):
         if self.serial_port is None:
             return
+
+        while self.serial_port.in_waiting >= 4:
             
-        # If there is data waiting, look for a frame
-        if self.serial_port.in_waiting > 0:
+            # Wait for the Start Byte (0xAA)
             if self.serial_port.read(1) == b'\xAA':
+                
+                # Confirm the Second Confirm Byte (0x55)
                 if self.serial_port.read(1) == b'\x55':
                     
-                    # Read the 2-byte size of the JPEG
+                    # Read the 2-byte size of the incoming JPEG
                     size_bytes = self.serial_port.read(2)
                     if len(size_bytes) == 2:
                         size = struct.unpack("<H", size_bytes)[0]
@@ -45,13 +48,17 @@ class OpenMVNode(Node):
                         img_data = self.serial_port.read(size)
                         
                         if len(img_data) == size:
-                            # Decode the raw bytes back into an OpenCV Image
+                            # 5. Decode the raw bytes back into an OpenCV Image
                             np_arr = np.frombuffer(img_data, np.uint8)
                             frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                             
                             if frame is not None:
                                 msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
                                 self.publisher_.publish(msg)
+                                
+                                # Flush the buffer to prevent delays
+                                self.serial_port.reset_input_buffer()
+                                return
 
 def main(args=None):
     rclpy.init(args=args)
