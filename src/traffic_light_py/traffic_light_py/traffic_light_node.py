@@ -12,7 +12,7 @@ class TrafficLightNode(Node):
         self.bridge = CvBridge()
         
         # Subscribe to the camera feed
-        self.image_sub = self.create_subscription(Image, 'camera/raw_video', self.image_callback, 10)
+        self.image_sub = self.create_subscription(Image, '/driver_perspective/image_raw', self.image_callback, 10)
         
         # Publishers for the car's brain and the web server
         self.state_pub = self.create_publisher(String, '/traffic_light_state', 10)
