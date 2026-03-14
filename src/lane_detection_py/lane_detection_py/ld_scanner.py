@@ -11,6 +11,11 @@ class LdScanner:
         self.right_lane = []
         self.center_lane = []
         
+        # NEW: Memory variable for Single-Line Fallback
+        # We start with a default guess, but it will dynamically update 
+        # the moment it sees two valid lines!
+        self.known_lane_width = 350 
+        
         # ROS2 Logger
         self.logger = logger or rclpy.logging.get_logger('Ld_scanner')
 
@@ -50,31 +55,51 @@ class LdScanner:
                     # Check if the segment width matches what a lane should look like
                     if self.config.min_lane_width <= lane_width <= self.config.max_lane_width:
                         lane_segments.append((segment_start, segment_end))
-                        self.logger.debug(f"Add Lane Segment that is {lane_width} pixels wide")
             
-            # Process lane segments if we found at least 2 (left and right)
             if len(lane_segments) >= 2:
                 left_lane_right_edge = lane_segments[0][1]
                 right_lane_left_edge = lane_segments[-1][0]
                 
                 road_width = abs(right_lane_left_edge - left_lane_right_edge)
-                self.logger.debug(f"Road width: {road_width}")
                 
                 # Check if the road width makes sense
                 if self.config.min_road_width <= road_width <= self.config.max_road_width:
                     
-                    # Find the midpoint between the left and right lane
-                    center_x = (left_lane_right_edge + right_lane_left_edge) // 2
+                    # MEMORY UPDATE: We see both lines, so memorize this exact width!
+                    self.known_lane_width = road_width
                     
-                    # Store the points as (x, y) tuples
+                    # Find the midpoint
+                    center_x = int((left_lane_right_edge + right_lane_left_edge) / 2)
+                    
+                    # Store the points
                     self.center_lane.append((center_x, y))
                     self.right_lane.append((right_lane_left_edge, y))
                     self.left_lane.append((left_lane_right_edge, y))
                     
-                    self.logger.debug(f"Left, center, right: ({left_lane_right_edge},{y}) ({right_lane_left_edge},{y}) ({center_x},{y})")
+            elif len(lane_segments) == 1:
+                seg = lane_segments[0]
+                
+                # Check if this single line is on the left half or right half of the camera
+                if seg[1] < (cols / 2):
+                    # It's the LEFT line (Yellow). We lost the right line.
+                    left_lane_right_edge = seg[1]
+                    # Hallucinate the right line using our memory!
+                    right_lane_left_edge = int(left_lane_right_edge + self.known_lane_width)
+                else:
+                    # It's the RIGHT line (White). We lost the left line.
+                    right_lane_left_edge = seg[0]
+                    # Hallucinate the left line using our memory!
+                    left_lane_right_edge = int(right_lane_left_edge - self.known_lane_width)
+                
+                # Calculate the center based on our hallucinated line
+                center_x = int((left_lane_right_edge + right_lane_left_edge) / 2)
+                
+                # Store the points just like normal!
+                self.center_lane.append((center_x, y))
+                self.right_lane.append((right_lane_left_edge, y))
+                self.left_lane.append((left_lane_right_edge, y))
 
         # Do a median filter to remove outlier points 
-        # (Moved outside the 'y' loop for massive performance gain)
         self.median_filter()
 
         # Return True if we found enough points
