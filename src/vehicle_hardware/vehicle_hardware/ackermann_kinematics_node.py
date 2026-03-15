@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Float32, Int32
 import math
@@ -31,8 +32,8 @@ class AckermannKinematicsNode(Node):
         self.steering_pub = self.create_publisher(Float32, '/vehicle/steering_angle', 10)
         
         # Publish to the Jetson GPIO node instead of Maestro
-        self.l_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_left', 10)
-        self.r_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_right', 10)
+        self.l_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_left', qos_profile_sensor_data)
+        self.r_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_right', qos_profile_sensor_data)
         
         self.get_logger().info(
             f"Ackermann Kinematics initialized with L={self.L}m, W={self.W}m, R={self.R_wheel}m"
