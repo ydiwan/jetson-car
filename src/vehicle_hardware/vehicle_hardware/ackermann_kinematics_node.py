@@ -55,7 +55,7 @@ class AckermannKinematicsNode(Node):
         steer_msg.data = steering_angle
         self.steering_pub.publish(steer_msg)
 
-        # Map rad/s to Duty Cycle (0-1000)
+        # Map rad/s to standard ROS Duty Cycle (-1000 to 1000)
         l_duty = int((rad_s_left / self.max_rad_s) * 1000)
         r_duty = int((rad_s_right / self.max_rad_s) * 1000)
 
@@ -66,6 +66,7 @@ class AckermannKinematicsNode(Node):
         # Debug
         self.get_logger().debug(f"Commanding -> L_PWM: {l_duty} | R_PWM: {r_duty}")
 
+        # Send values to GPIO node
         self.l_pwm_pub.publish(Int32(data=l_duty))
         self.r_pwm_pub.publish(Int32(data=r_duty))
 
