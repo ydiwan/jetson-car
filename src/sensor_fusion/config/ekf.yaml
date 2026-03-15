@@ -1,0 +1,37 @@
+ekf_filter_node:
+  ros__parameters:
+    frequency: 50.0 # Match this to odometry estimator frequency
+    sensor_timeout: 0.1
+    two_d_mode: true 
+
+    # Frames 
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom # Set to odom for continuous local navigation, map for global
+
+    # Open-Loop Wheel Odometry 
+    odom0: /vehicle/odom
+    # [X, Y, Z,
+    #  roll, pitch, yaw,
+    #  vx, vy, vz,
+    #  vroll, vpitch, vyaw,
+    #  ax, ay, az]
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_differential: false
+
+    # Vicon Ground Truth Pose 
+    pose0: /vicon_pose
+    pose0_config: [true,  true,  false,
+                   false, false, true,
+                   false, false, false,
+                   false, false, false,
+                   false, false, false]
+    pose0_differential: false
+
+    # Advanced Tuning 
+    use_control: false
