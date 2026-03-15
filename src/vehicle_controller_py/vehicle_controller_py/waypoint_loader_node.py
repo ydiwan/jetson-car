@@ -1,9 +1,11 @@
+import os
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseArray, Pose
 from std_msgs.msg import String
 from dataclasses import dataclass
 from typing import List
+from ament_index_python.packages import get_package_share_directory
 
 @dataclass
 class Waypoint:
@@ -21,9 +23,17 @@ class WaypointLoaderNode(Node):
         self.declare_parameter('publish_frequency', 10.0)  # Hz
         self.declare_parameter('frame_id', 'map')
 
-        self.csv_file = self.get_parameter('csv_file').value
+        csv_filename = self.get_parameter('csv_file').value
         publish_frequency = self.get_parameter('publish_frequency').value
         self.frame_id = self.get_parameter('frame_id').value
+
+        # Dynamically build the path to the CSV file 
+        try:
+            package_share_directory = get_package_share_directory('vehicle_controller_py')
+            self.csv_file = os.path.join(package_share_directory, 'config', csv_filename)
+        except Exception as e:
+            self.get_logger().error(f"Could not find package share directory: {e}")
+            self.csv_file = csv_filename # Fallback to just the filename
 
         # 2. Create Publishers
         self.waypoints_publisher = self.create_publisher(PoseArray, 'waypoints', 10)
