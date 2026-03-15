@@ -85,7 +85,7 @@ class MaestroInterfaceNode(Node):
 
         # Open-Loop PWM Mapping: 
         # Maps -16.65 to 16.65 rad/s into 1000 to 2000 PWM (1500 is stop)
-        l_pwm = 1500 + int((l_rad_s / self.max_rad_s) * 500)
+        l_pwm = 1500 - int((l_rad_s / self.max_rad_s) * 500) # inverted left motor
         r_pwm = 1500 + int((r_rad_s / self.max_rad_s) * 500)
 
         self.send_maestro_command(self.l_motor_ch, l_pwm)
