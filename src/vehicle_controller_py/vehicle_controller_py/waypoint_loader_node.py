@@ -17,7 +17,7 @@ class WaypointLoaderNode(Node):
         super().__init__('waypoint_loader')
 
         # 1. Declare and Get Parameters
-        self.declare_parameter('csv_file', '')
+        self.declare_parameter('csv_file', 'coordinates.csv')
         self.declare_parameter('publish_frequency', 10.0)  # Hz
         self.declare_parameter('frame_id', 'map')
 
