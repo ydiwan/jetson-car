@@ -18,74 +18,46 @@ class JetsonGPIONode(Node):
         # Setup GPIO 
         GPIO.setmode(GPIO.BOARD)
         GPIO.setup([self.R_DIR_PIN, self.L_DIR_PIN], GPIO.OUT, initial=GPIO.LOW)
-        
-        # Start as inputs, internal pull-up turns motors off
-        GPIO.setup(self.R_PWM_PIN, GPIO.IN)
-        GPIO.setup(self.L_PWM_PIN, GPIO.IN)
+        GPIO.setup([self.R_PWM_PIN, self.L_PWM_PIN], GPIO.OUT, initial=GPIO.LOW) # LOW = 0V
 
-        self.r_pwm = None
-        self.l_pwm = None
+        self.r_pwm = GPIO.PWM(self.R_PWM_PIN, self.PWM_FREQ)
+        self.l_pwm = GPIO.PWM(self.L_PWM_PIN, self.PWM_FREQ)
+
+        # Start at 0% Duty Cycle (Perfectly Stopped)
+        self.r_pwm.start(0.0)
+        self.l_pwm.start(0.0)
 
         # Subscriptions
         self.l_sub = self.create_subscription(Int32, 'gpio/pwm_left', self.left_callback, qos_profile_sensor_data)
         self.r_sub = self.create_subscription(Int32, 'gpio/pwm_right', self.right_callback, qos_profile_sensor_data)
 
-        self.get_logger().info("GPIO Node Active: Using High-Z Trick for perfect braking.")
+        self.get_logger().info("GPIO Node Active: Standard Active-High Logic.")
 
-    def set_motor(self, is_left, target_velocity):
-        pwm_pin = self.L_PWM_PIN if is_left else self.R_PWM_PIN
-        dir_pin = self.L_DIR_PIN if is_left else self.R_DIR_PIN
-        
-        if target_velocity == 0:
-            if is_left and self.l_pwm:
-                self.l_pwm.stop()
-                self.l_pwm = None
-                GPIO.cleanup(pwm_pin) # Force release the pin
-            elif not is_left and self.r_pwm:
-                self.r_pwm.stop()
-                self.r_pwm = None
-                GPIO.cleanup(pwm_pin) # Force release the pin
-                
-            # Turns motors off
-            GPIO.setup(pwm_pin, GPIO.IN)
-            return
-
-        # Turn pin back into an OUTPUT
-        GPIO.setup(pwm_pin, GPIO.OUT)
-        
+    def set_motor(self, pwm_obj, dir_pin, target_velocity):
         # Set Direction
         if target_velocity >= 0:
             GPIO.output(dir_pin, GPIO.HIGH) # Forward
         else:
             GPIO.output(dir_pin, GPIO.LOW)  # Reverse
 
-        # Calculate Active-Low Duty Cycle
+        # Calculate Standard Duty Cycle (0.0 to 100.0)
         speed_percent = abs(target_velocity) / 10.0
-        active_low_duty = 100.0 - speed_percent
 
-        # Start or Update PWM
-        if is_left:
-            if not self.l_pwm:
-                self.l_pwm = GPIO.PWM(pwm_pin, self.PWM_FREQ)
-                self.l_pwm.start(active_low_duty)
-            else:
-                self.l_pwm.ChangeDutyCycle(active_low_duty)
-        else:
-            if not self.r_pwm:
-                self.r_pwm = GPIO.PWM(pwm_pin, self.PWM_FREQ)
-                self.r_pwm.start(active_low_duty)
-            else:
-                self.r_pwm.ChangeDutyCycle(active_low_duty)
+        # Clamp just to be safe
+        speed_percent = max(min(speed_percent, 100.0), 0.0)
+
+        # Apply
+        pwm_obj.ChangeDutyCycle(speed_percent)
 
     def left_callback(self, msg: Int32):
-        self.set_motor(True, msg.data)
+        self.set_motor(self.l_pwm, self.L_DIR_PIN, msg.data)
 
     def right_callback(self, msg: Int32):
-        self.set_motor(False, msg.data)
+        self.set_motor(self.r_pwm, self.R_DIR_PIN, msg.data)
 
     def destroy_node(self):
-        if self.l_pwm: self.l_pwm.stop()
-        if self.r_pwm: self.r_pwm.stop()
+        self.r_pwm.stop()
+        self.l_pwm.stop()
         GPIO.cleanup()
         super().destroy_node()
 
