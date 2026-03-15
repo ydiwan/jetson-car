@@ -14,9 +14,9 @@ class MaestroInterfaceNode(Node):
         self.declare_parameter('left_enable_channel', 1)  # Motor Enable L
         self.declare_parameter('right_enable_channel', 2) # Motor Enable R
         
-        self.declare_parameter('servo_min', 1100)
+        self.declare_parameter('servo_min', 900)
         self.declare_parameter('servo_center', 1500)
-        self.declare_parameter('servo_max', 2100)
+        self.declare_parameter('servo_max', 1800)
         self.declare_parameter('max_steer_angle', 0.52) 
 
         self.usb_path = self.get_parameter('servo_usb').value
