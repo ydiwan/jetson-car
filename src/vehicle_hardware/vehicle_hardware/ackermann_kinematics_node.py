@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Float32MultiArray, Float32
+from std_msgs.msg import Float32MultiArray, Float32, Int32
 import math
 
 class AckermannKinematicsNode(Node):
@@ -32,6 +32,10 @@ class AckermannKinematicsNode(Node):
         
         # Publishes target rotational speed in rad/s for [left_motor, right_motor]
         self.wheel_speed_pub = self.create_publisher(Float32MultiArray, '/vehicle/wheel_speeds', 10)
+        
+        # Publish to the Jetson GPIO node
+        self.l_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_left', 10)
+        self.r_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_right', 10)
         
         self.get_logger().info(
             f"Ackermann Kinematics initialized with L={self.L}m, W={self.W}m, R={self.R_wheel}m"
@@ -65,10 +69,16 @@ class AckermannKinematicsNode(Node):
         steer_msg.data = steering_angle
         self.steering_pub.publish(steer_msg)
 
-        # Publish Wheel Speeds [Left, Right]
-        wheel_msg = Float32MultiArray()
-        wheel_msg.data = [float(rad_s_left), float(rad_s_right)]
-        self.wheel_speed_pub.publish(wheel_msg)
+        # Map rad/s (-16.65 to 16.65) to Duty Cycle range (-1000 to 1000)
+        l_duty = int((rad_s_left / self.max_rad_s) * 1000)
+        r_duty = int((rad_s_right / self.max_rad_s) * 1000)
+        
+        # Clamp values
+        l_duty = max(min(l_duty, 1000), -1000)
+        r_duty = max(min(r_duty, 1000), -1000)
+        
+        self.l_pwm_pub.publish(Int32(data=l_duty))
+        self.r_pwm_pub.publish(Int32(data=r_duty))
         
         # Debug output
         self.get_logger().debug(

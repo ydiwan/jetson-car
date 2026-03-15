@@ -53,4 +53,12 @@ def generate_launch_description():
             name='maestro_interface_node',
             output='screen'
         ),
+        
+        # GPIO Node
+        Node(
+            package='vehicle_hardware',
+            executable='gpio_node',
+            name='gpio_node',
+            output='screen'
+        ),
     ])
