@@ -110,7 +110,7 @@ class VehicleControllerNode(Node):
         distance = self.car.vicon_cal_dis(target_x, target_y)
 
         # check if close enough to target
-        if distance <= 100:
+        if distance <= 0.3:
             self.current_target_idx += 1
             if self.current_target_idx < len(self.waypoints):
                 target_x = self.waypoints[self.current_target_idx][0]

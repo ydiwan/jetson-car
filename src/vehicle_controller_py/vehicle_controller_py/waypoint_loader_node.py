@@ -77,8 +77,8 @@ class WaypointLoaderNode(Node):
                     # Ensure we have at least X and Y
                     if len(parts) >= 2:
                         try:
-                            x = float(parts[0].strip())
-                            y = float(parts[1].strip())
+                            x = float(parts[0].strip()) / 1000.0
+                            y = float(parts[1].strip()) / 1000.0
                             
                             # Safely extract name if it exists, otherwise leave empty
                             name = parts[2].strip() if len(parts) > 2 else ""
