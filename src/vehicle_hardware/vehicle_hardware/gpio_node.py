@@ -40,9 +40,11 @@ class JetsonGPIONode(Node):
             if is_left and self.l_pwm:
                 self.l_pwm.stop()
                 self.l_pwm = None
+                GPIO.cleanup(pwm_pin) # Force release the pin
             elif not is_left and self.r_pwm:
                 self.r_pwm.stop()
                 self.r_pwm = None
+                GPIO.cleanup(pwm_pin) # Force release the pin
                 
             # Turns motors off
             GPIO.setup(pwm_pin, GPIO.IN)
