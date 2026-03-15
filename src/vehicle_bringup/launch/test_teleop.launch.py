@@ -31,14 +31,6 @@ def generate_launch_description():
             name='odometry_estimator_node',
             output='screen'
         ),
-
-        # RViz2
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz2',
-            output='screen'
-        ),
         
         # Publishes dummy zero-states for the continuous wheel joints
         Node(
