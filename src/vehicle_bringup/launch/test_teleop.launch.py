@@ -42,13 +42,13 @@ def generate_launch_description():
 
         # Hardware Interfaces
         Node(
-            package='hardware_interface', 
+            package='vehicle_hardware', 
             executable='ackermann_kinematics_node',
             name='ackermann_kinematics_node',
             output='screen'
         ),
         Node(
-            package='hardware_interface',
+            package='vehicle_hardware',
             executable='maestro_interface_node',
             name='maestro_interface_node',
             output='screen'
