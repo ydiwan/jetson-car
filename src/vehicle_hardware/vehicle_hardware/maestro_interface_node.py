@@ -76,11 +76,13 @@ class MaestroInterfaceNode(Node):
     def steer_callback(self, msg: Float32):
         angle_rad = max(min(msg.data, self.max_angle), -self.max_angle)
         
-        # Fix steering asymmetry
+        # Fix steering asym
         if angle_rad > 0:
-            pwm_target = self.pwm_center - int((angle_rad / self.max_angle) * (self.pwm_center - self.pwm_min))
+            ratio = angle_rad / self.max_angle
+            pwm_target = self.pwm_center - int(ratio * (self.pwm_center - self.pwm_min))
         else:
-            pwm_target = self.pwm_center - int((angle_rad / -self.max_angle) * (self.pwm_max - self.pwm_center))
+            ratio = abs(angle_rad) / self.max_angle
+            pwm_target = self.pwm_center + int(ratio * (self.pwm_max - self.pwm_center))
             
         self.send_maestro_command(self.steer_ch, pwm_target)
 
