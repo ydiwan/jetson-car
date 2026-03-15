@@ -20,10 +20,6 @@ class AckermannKinematicsNode(Node):
         self.R_wheel = self.get_parameter('wheel_radius').value
         self.max_rad_s = self.get_parameter('max_motor_speed').value
 
-        # State Variables 
-        self.target_v_x = 0.0
-        self.target_omega_z = 0.0
-
         # Subscriptions
         self.cmd_vel_sub = self.create_subscription(
             Twist,
@@ -32,30 +28,25 @@ class AckermannKinematicsNode(Node):
             10
         )
 
-        # Publishers
+        # Publishers 
         self.steering_pub = self.create_publisher(Float32, '/vehicle/steering_angle', 10)
-        self.l_pwm_pub = self.create_publisher(Int32, '/gpio/pwm_left', qos_profile_sensor_data)
-        self.r_pwm_pub = self.create_publisher(Int32, '/gpio/pwm_right', qos_profile_sensor_data)
+        self.l_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_left', qos_profile_sensor_data)
+        self.r_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_right', qos_profile_sensor_data)
         
-        # Continuous Control Loop
-        self.timer = self.create_timer(0.02, self.control_loop)
-        
-        self.get_logger().info("Ackermann Kinematics Active: 50Hz Control Loop Started.")
+        self.get_logger().info("Ackermann Kinematics Active: Event-Driven Mode.")
 
     def cmd_vel_callback(self, msg: Twist):
-        # Just update the state memory, let the timer handle the math
-        self.target_v_x = msg.linear.x       
-        self.target_omega_z = msg.angular.z  
+        v_x = msg.linear.x       
+        omega_z = msg.angular.z  
 
-    def control_loop(self):
-        if self.target_v_x == 0.0:
+        if v_x == 0.0:
             steering_angle = 0.0
             rad_s_left = 0.0
             rad_s_right = 0.0
         else:
-            steering_angle = math.atan((self.L * self.target_omega_z) / self.target_v_x)
-            v_left = self.target_v_x - (self.target_omega_z * self.W / 2.0)
-            v_right = self.target_v_x + (self.target_omega_z * self.W / 2.0)
+            steering_angle = math.atan((self.L * omega_z) / v_x)
+            v_left = v_x - (omega_z * self.W / 2.0)
+            v_right = v_x + (omega_z * self.W / 2.0)
             rad_s_left = v_left / self.R_wheel
             rad_s_right = v_right / self.R_wheel
 
@@ -72,7 +63,9 @@ class AckermannKinematicsNode(Node):
         l_duty = max(min(l_duty, 1000), -1000)
         r_duty = max(min(r_duty, 1000), -1000)
 
-        # Publish continuously at 50Hz
+        # Debug
+        self.get_logger().debug(f"Commanding -> L_PWM: {l_duty} | R_PWM: {r_duty}")
+
         self.l_pwm_pub.publish(Int32(data=l_duty))
         self.r_pwm_pub.publish(Int32(data=r_duty))
 
