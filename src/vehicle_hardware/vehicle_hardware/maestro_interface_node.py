@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
+from geometry_msgs.msg import Twist
 import serial
 
 class MaestroInterfaceNode(Node):
@@ -15,7 +16,7 @@ class MaestroInterfaceNode(Node):
         
         self.declare_parameter('servo_min', 1100)
         self.declare_parameter('servo_center', 1500)
-        self.declare_parameter('servo_max', 1800)
+        self.declare_parameter('servo_max', 2100)
         self.declare_parameter('max_steer_angle', 0.52) 
 
         self.usb_path = self.get_parameter('servo_usb').value
@@ -62,6 +63,15 @@ class MaestroInterfaceNode(Node):
             self.serial_port.write(command)
         except serial.SerialException as e:
             self.get_logger().error(f"Serial write failed: {e}")
+
+    def cmd_callback(self, msg: Twist):
+        """Dynamic kill-switch based on target velocity."""
+        if msg.linear.x == 0.0:
+            self.set_pin(self.l_en_ch, 0)
+            self.set_pin(self.r_en_ch, 0)
+        else:
+            self.set_pin(self.l_en_ch, 1)
+            self.set_pin(self.r_en_ch, 1)
 
     def steer_callback(self, msg: Float32):
         angle_rad = max(min(msg.data, self.max_angle), -self.max_angle)
