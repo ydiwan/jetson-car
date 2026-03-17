@@ -9,7 +9,7 @@ class CameraLaneNode(Node):
         super().__init__('camera_lane_node')
         
         # Parameters
-        self.declare_parameter('video_device', '/dev/ttyACM0')
+        self.declare_parameter('video_device', '/dev/video0')
         self.declare_parameter('image_width', 640)
         self.declare_parameter('image_height', 480)
         self.declare_parameter('fps', 30)
