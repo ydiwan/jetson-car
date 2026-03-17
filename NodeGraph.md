@@ -11,9 +11,15 @@
 
 * maestro_interface_node
 
-    Subscribes: /vehicle/wheel_speeds (custom msg), /vehicle/steering_angle (std_msgs/Float32)
+    Subscribes: /vehicle/steering_angle (std_msgs/Float32)
 
-    Action: Translates ROS inputs to Pololu serial commands.
+    Action: Translates ROS inputs to Pololu serial commands for the front steering servo.
+
+* gpio_node
+
+    Subscribes: gpio/pwm_left (std_msgs/Int32), gpio/pwm_right (std_msgs/Int32)
+
+    Action: Generates 3.3V Active-Low PWM signals directly from the Jetson's GPIO pins to drive the rear motors.
 
 * vicon_bridge (Runs on separate Pi)
 
@@ -84,3 +90,4 @@
     Subscribes: Key image topics, pose, and state data.
 
     Publishes: Compressed images and consolidated states to a WebSocket via rosbridge_server for the UI/UX dashboard.
+

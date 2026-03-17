@@ -4,14 +4,17 @@
 **Objective:** Develop a 1/10th scale autonomous vehicle capable of navigating an open Cyber City testbed. The vehicle will utilize Ackermann steering and rely on a decoupled, vision-based perception stack combined with external Vicon motion capture data for precise localization, intelligent decision-making, and multi-agent V2X communication.
 
 ## 2. Hardware Specifications
-* **Compute Engine:** NVIDIA Jetson Orin Nano (Primary ROS2 node execution, AI inference).
+* **Compute Engine:** NVIDIA Jetson Orin Nano (Primary ROS2 node execution, AI inference, Rear Motor GPIO PWM Control).
 * **Vision Sensors:** 2x See3CAM CU30 USB Cameras.
     * *Camera 1 (Low Mount):* Dedicated to lane detection and immediate frontal obstacle detection.
     * *Camera 2 (Driver Perspective):* Dedicated to traffic light state detection, stop signs, and speed limit sign reading.
 * **Actuation:**
     * *Drive:* 2x DFRobot FIT0441 Brushless DC Motors (12V, 159RPM) with encoders (rear-wheel drive).
+        * Hardware Info 1 (Active-Low): Motors require a 0% duty cycle to run at max speed, and a 100% duty cycle to stop.
+
+        * Hardware Info 2 (Direction Limits): Right motor DIR pin is disconnected/hardwired; the chassis currently operates in a Forward-Only configuration.
     * *Steering:* Front axle steering servo (Ackermann configuration).
-* **Low-Level Control:** Pololu Micro Maestro Controller.
+* **Low-Level Control:** Pololu Micro Maestro Controller (Dedicated exclusively to the front steering servo).
 * **Localization Ingestion:** Raspberry Pi receiving Vicon system UDP/TCP stream.
 
 ## 3. Software Stack & Ecosystem
@@ -24,7 +27,7 @@
 
 ### 4.1. Localization & State Estimation
 * **FR-1:** Ingest `geometry_msgs/msg/PoseStamped` data at 100Hz from the Vicon bridge node.
-* **FR-2:** Calculate wheel odometry utilizing rear-motor encoders.
+* **FR-2:** Calculate wheel odometry.
 * **FR-3:** Fuse Vicon pose data with wheel odometry via an Extended Kalman Filter (EKF).
 
 ### 4.2. Perception
@@ -35,7 +38,7 @@
 ### 4.3. Planning & Control
 * **FR-7 (Behavioral State Machine):** Transition between states (e.g., `LANE_FOLLOWING`, `STOPPED_AT_LIGHT`) based on perception inputs.
 * **FR-8 (Local Trajectory):** Generate `geometry_msgs/Twist` (`cmd_vel`) commands to track the centerline.
-* **FR-9 (Ackermann Kinematics):** Translate `cmd_vel` into specific steering servo angles and individual rear-wheel speeds (electronic differential).
+* **FR-9 (Ackermann Kinematics):** Translate `cmd_vel` into specific steering servo angles and individual rear-wheel speeds using an Electronic Differential algorithm. Rear-wheel speeds must be inverted to a 0-1000 scale to satisfy Active-Low motor hardware
 
 ### 4.4. V2X Communication (V2V & V2I)
 * **FR-10 (V2I Traffic State):** Subscribe to a central Cyber City infrastructure topic over the ROS2 Wi-Fi domain (`ROS_DOMAIN_ID=25`).
