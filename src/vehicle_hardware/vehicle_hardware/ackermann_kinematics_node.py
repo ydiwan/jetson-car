@@ -11,64 +11,71 @@ class AckermannKinematicsNode(Node):
         
         # Parameters
         self.declare_parameter('wheelbase', 0.148)   
-        self.declare_parameter('track_width', 0.133) 
-        self.declare_parameter('wheel_radius', 0.034)
-        self.declare_parameter('max_motor_speed', 16.65)
+        self.declare_parameter('max_steer_angle', 0.52) # Needed for the turn_coeff mapping
         
         self.L = self.get_parameter('wheelbase').value
-        self.W = self.get_parameter('track_width').value
-        self.R_wheel = self.get_parameter('wheel_radius').value
-        self.max_rad_s = self.get_parameter('max_motor_speed').value
+        self.max_angle = self.get_parameter('max_steer_angle').value
 
         # Subscriptions
-        self.cmd_vel_sub = self.create_subscription(
-            Twist,
-            '/cmd_vel',
-            self.cmd_vel_callback,
-            10
-        )
+        self.cmd_vel_sub = self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
 
-        # Publishers 
+        # Publishers
         self.steering_pub = self.create_publisher(Float32, '/vehicle/steering_angle', 10)
         self.l_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_left', qos_profile_sensor_data)
         self.r_pwm_pub = self.create_publisher(Int32, 'gpio/pwm_right', qos_profile_sensor_data)
         
-        self.get_logger().info("Ackermann Kinematics Active: Event-Driven Mode.")
+        self.get_logger().info("Ackermann Node initialized with Inverted Electronic Differential.")
 
     def cmd_vel_callback(self, msg: Twist):
         v_x = msg.linear.x       
         omega_z = msg.angular.z  
 
+        # Handle Dead Stop
         if v_x == 0.0:
-            steering_angle = 0.0
-            rad_s_left = 0.0
-            rad_s_right = 0.0
-        else:
-            steering_angle = math.atan((self.L * omega_z) / v_x)
-            v_left = v_x - (omega_z * self.W / 2.0)
-            v_right = v_x + (omega_z * self.W / 2.0)
-            rad_s_left = v_left / self.R_wheel
-            rad_s_right = v_right / self.R_wheel
+            self.steering_pub.publish(Float32(data=0.0))
+            # 1000 is the mathematical STOP state for Active-Low motors
+            self.l_pwm_pub.publish(Int32(data=1000)) 
+            self.r_pwm_pub.publish(Int32(data=1000)) 
+            return
 
-        # Publish Steering
+        # Calculate Physical Steering Angle
+        steering_angle = math.atan((self.L * omega_z) / v_x)
+        steering_angle = max(-self.max_angle, min(self.max_angle, steering_angle))
+        
         steer_msg = Float32()
         steer_msg.data = steering_angle
         self.steering_pub.publish(steer_msg)
+        
+        """
+        Map steering angle to turn coefficient (0.0 to 1.0)
+        Left (+ angle) -> turn_coeff = 0.0
+        Center (0.0) -> turn_coeff = 0.5
+        Right (- angle) -> turn_coeff = 1.0
+        """
+        turn_coeff = (-steering_angle + self.max_angle) / (2.0 * self.max_angle)
+        turn_coeff = max(0.0, min(1.0, turn_coeff))
 
-        # Map rad/s to standard ROS Duty Cycle (-1000 to 1000)
-        l_duty = int((rad_s_left / self.max_rad_s) * 1000)
-        r_duty = int((rad_s_right / self.max_rad_s) * 1000)
+        # Base Effort
+        # Normalize the keyboard speed (0.73) into a 0.0 to 1.0 percentage
+        effort = abs(v_x)
+        effort = max(0.0, min(1.0, effort))
 
-        # Clamp values
-        l_duty = max(min(l_duty, 1000), -1000)
-        r_duty = max(min(r_duty, 1000), -1000)
+        # Calculate Speed Percentages 
+        # When turning left (coeff=0), inside wheel speed is 0, outside is max
+        left_speed_pct = effort * turn_coeff       
+        right_speed_pct = effort * (1.0 - turn_coeff)
 
-        # Debug
-        self.get_logger().debug(f"Commanding -> L_PWM: {l_duty} | R_PWM: {r_duty}")
+        # Invert since motors are active-low
+        left_pwm = int(1000 - (left_speed_pct * 1000))
+        right_pwm = int(1000 - (right_speed_pct * 1000))
 
-        # Send values to GPIO node
-        self.l_pwm_pub.publish(Int32(data=l_duty))
-        self.r_pwm_pub.publish(Int32(data=r_duty))
+        # Handle Reverse 
+        if v_x < 0:
+            left_pwm = -left_pwm
+            right_pwm = -right_pwm
+
+        self.l_pwm_pub.publish(Int32(data=left_pwm))
+        self.r_pwm_pub.publish(Int32(data=right_pwm))
 
 def main(args=None):
     rclpy.init(args=args)
