@@ -34,11 +34,18 @@ class LaneDetectorNode(Node):
 
         # Define the Bird's-Eye View perspective warp points
         # This draws a trapezoid on the original image targeting the lane lines.
+        # src = np.float32([
+        #     [int(width * 0.1), height],             # Bottom-Left
+        #     [int(width * 0.35), int(height * 0.6)], # Top-Left
+        #     [int(width * 0.65), int(height * 0.6)], # Top-Right
+        #     [int(width * 0.9), height]              # Bottom-Right
+        # ])
+        
         src = np.float32([
-            [int(width * 0.1), height],             # Bottom-Left
-            [int(width * 0.35), int(height * 0.6)], # Top-Left
-            [int(width * 0.65), int(height * 0.6)], # Top-Right
-            [int(width * 0.9), height]              # Bottom-Right
+            [0, height],
+            [273, 294],
+            [378, 294],
+            [640, height]
         ])
         
         # Destination points form a perfect top-down rectangle
@@ -81,12 +88,19 @@ class LaneDetectorNode(Node):
         delta_msg.data = delta
         self.delta_pub.publish(delta_msg)
 
-        # Generate Debug Visuals (Temp)
+        # Generate Debug Visuals
         if self.debug_pub.get_subscription_count() > 0:
-            cv2.line(warped, (lane_center, 0), (lane_center, height), (0, 255, 0), 3)
-            cv2.line(warped, (car_center, 0), (car_center, height), (0, 0, 255), 3)
             
-            debug_msg = self.bridge.cv2_to_imgmsg(warped, encoding="bgr8")
+            debug_view = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+
+            # Draw a line showing the center of the lane in green
+            cv2.line(debug_view, (lane_center, 0), (lane_center, height), (0, 255, 0), 3)
+            
+            # Draw a line showing the center of the car in red
+            cv2.line(debug_view, (car_center, 0), (car_center, height), (0, 0, 255), 3)
+            
+            # Publish the binary mask with tracking lines
+            debug_msg = self.bridge.cv2_to_imgmsg(debug_view, encoding="bgr8")
             self.debug_pub.publish(debug_msg)
 
 def main(args=None):
