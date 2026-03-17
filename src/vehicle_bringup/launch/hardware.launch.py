@@ -42,7 +42,7 @@ def generate_launch_description():
         # Arguments
         DeclareLaunchArgument(
             'hardware_type',
-            default_value='simulated',
+            default_value='real',
             description='Type of hardware: "real" or "simulated"'
         ),
         DeclareLaunchArgument(
