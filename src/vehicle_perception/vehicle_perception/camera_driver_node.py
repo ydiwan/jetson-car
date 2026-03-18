@@ -6,14 +6,15 @@ import cv2
 import threading
 import time
 
-class CameraLaneNode(Node):
+class VideoPublisher(Node):
     def __init__(self):
         super().__init__('video_publisher')
         
+        # Parameters
         self.declare_parameter('camera_index', 0)
-        self.declare_parameter('width', 640)  
-        self.declare_parameter('height', 480)
-        self.declare_parameter('fps', 60)    
+        self.declare_parameter('width', 1280)
+        self.declare_parameter('height', 720)
+        self.declare_parameter('fps', 60)
         
         cam_index = self.get_parameter('camera_index').value
         width = self.get_parameter('width').value
@@ -22,20 +23,17 @@ class CameraLaneNode(Node):
         
         self.bridge = CvBridge()
         
-        # Open GStreamer / V4L2
-        # self.cap = cv2.VideoCapture(cam_index)
-        self.cap = cv2.VideoCapture(cam_index, cv2.CAP_V4L2)
+        # Open GStreamer / OpenCV Capture
+        self.cap = cv2.VideoCapture(cam_index)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.cap.set(cv2.CAP_PROP_FPS, fps)
-        
         
         if not self.cap.isOpened():
             self.get_logger().error('Failed to open USB camera')
             return
             
-        # Publisher
-        self.image_pub = self.create_publisher(Image, '/camera/lane/image_raw', 1)
+        self.image_pub = self.create_publisher(Image, 'camera/image_raw', 1)
         
         # Frame buffer variables
         self.should_exit = False
@@ -52,6 +50,7 @@ class CameraLaneNode(Node):
         self.timer = self.create_timer(period_ms, self.publish_frame)
         
         self.get_logger().info(f"Video publisher started at {width}x{height} @ {fps} fps")
+        self.get_logger().info("Publishing on: camera/image_raw")
 
     def capture_loop(self):
         """Continuously pulls frames from the hardware buffer to prevent lag."""
@@ -72,14 +71,14 @@ class CameraLaneNode(Node):
             frame = self.latest_frame.copy()
             self.has_new_frame = False
             
-        # Convert BGRA to BGR
+        # Convert BGRA to BGR if necessary
         if len(frame.shape) == 3 and frame.shape[2] == 4:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
             
         # Create and publish raw image message
         msg = self.bridge.cv2_to_imgmsg(frame, "bgr8")
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "camera_lane_link"
+        msg.header.frame_id = "camera_frame"
         
         self.image_pub.publish(msg)
 
@@ -94,7 +93,7 @@ class CameraLaneNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = CameraLaneNode()
+    node = VideoPublisher()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

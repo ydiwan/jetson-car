@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'camera_lane_node = vehicle_perception.camera_lane_node:main',
+            'ufld_node = vehicle_perception.ufld_node:main',
         ],
     },
 )
