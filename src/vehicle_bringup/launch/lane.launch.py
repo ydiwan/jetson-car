@@ -9,13 +9,13 @@ from launch_ros.actions import Node
 def generate_launch_description():
     
     # Declare launch arguments
-    hardware_type = DeclareLaunchArgument(
+    hardware_type_arg = DeclareLaunchArgument(
         'hardware_type',
         default_value='real',
         description='Type of hardware: "real" or "simulated"'
     )
     
-    show_sim = DeclareLaunchArgument(
+    show_sim_arg = DeclareLaunchArgument(
         'show_sim',
         default_value='false',
         description='Whether to launch Gazebo/RViz when in simulated mode'
@@ -31,18 +31,18 @@ def generate_launch_description():
     return LaunchDescription([
         
         # Add the arguments
-        hardware_type,
-        show_sim,
+        hardware_type_arg,
+        show_sim_arg,
         
         # Include the Base Hardware and forward the arguments to it
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(bringup_dir, 'launch', 'hardware.launch.py')
             ),
-            launch_arguments={
-                'hardware_type': hardware_type,
-                'show_sim': show_sim
-            }.items()
+            launch_arguments=[
+                ('hardware_type', hardware_type),
+                ('show_sim', show_sim)
+            ]
         ),
 
         # Camera driver
