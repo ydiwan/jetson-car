@@ -1,35 +1,29 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, CompressedImage
+from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
-import numpy as np
 import threading
 import time
 
-class CameraLaneNode(Node):
+class VideoPublisher(Node):
     def __init__(self):
-        super().__init__('camera_lane_node')
+        super().__init__('video_publisher')
         
-        # Parameters
-        self.declare_parameter('video_device', 0)
-        self.declare_parameter('width', 1920)
-        self.declare_parameter('height', 1080)
-        self.declare_parameter('fps', 30) 
+        self.declare_parameter('camera_index', 0)
+        self.declare_parameter('width', 640)  
+        self.declare_parameter('height', 480)
+        self.declare_parameter('fps', 60)    
         
-        cam_index = self.get_parameter('video_device').value
+        cam_index = self.get_parameter('camera_index').value
         width = self.get_parameter('width').value
         height = self.get_parameter('height').value
         fps = self.get_parameter('fps').value
         
         self.bridge = CvBridge()
         
-        # Open Camera
-        self.cap = cv2.VideoCapture(cam_index, cv2.CAP_V4L2)
-        
-        # Force MJPEG format before setting resolution
-        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-        self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+        # Open GStreamer / V4L2
+        self.cap = cv2.VideoCapture(cam_index)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.cap.set(cv2.CAP_PROP_FPS, fps)
@@ -38,25 +32,24 @@ class CameraLaneNode(Node):
             self.get_logger().error('Failed to open USB camera')
             return
             
-        # Publishers
-        self.raw_pub = self.create_publisher(Image, '/camera/lane/image_raw', 1)
-        self.comp_pub = self.create_publisher(CompressedImage, '/camera/lane/image_compressed', 1)
+        # Publisher
+        self.image_pub = self.create_publisher(Image, '/camera/lane/image_raw', 1)
         
-        # Multithreading Safety Variables
+        # Frame buffer variables
         self.should_exit = False
         self.latest_frame = None
         self.has_new_frame = False
         self.frame_lock = threading.Lock()
         
-        # Start Hardware Capture Thread
+        # Start hardware capture thread
         self.capture_thread = threading.Thread(target=self.capture_loop)
         self.capture_thread.start()
         
-        # Timer for ROS Publishing
+        # Timer for publishing
         period_ms = 1.0 / fps
         self.timer = self.create_timer(period_ms, self.publish_frame)
         
-        self.get_logger().info(f"Multithreaded Camera active at {width}x{height} @ {fps}fps")
+        self.get_logger().info(f"Video publisher started at {width}x{height} @ {fps} fps")
 
     def capture_loop(self):
         """Continuously pulls frames from the hardware buffer to prevent lag."""
@@ -81,22 +74,12 @@ class CameraLaneNode(Node):
         if len(frame.shape) == 3 and frame.shape[2] == 4:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
             
-        stamp = self.get_clock().now().to_msg()
-            
-        # Publish Raw Message
-        raw_msg = self.bridge.cv2_to_imgmsg(frame, "bgr8")
-        raw_msg.header.stamp = stamp
-        raw_msg.header.frame_id = "camera_lane_link"
-        self.raw_pub.publish(raw_msg)
-
-        # Publish Compressed Message
-        comp_msg = CompressedImage()
-        comp_msg.header.stamp = stamp
-        comp_msg.header.frame_id = "camera_lane_link"
-        comp_msg.format = "jpeg"
-        _, encoded_image = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-        comp_msg.data = np.array(encoded_image).tobytes()
-        self.comp_pub.publish(comp_msg)
+        # Create and publish raw image message
+        msg = self.bridge.cv2_to_imgmsg(frame, "bgr8")
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "camera_lane_link"
+        
+        self.image_pub.publish(msg)
 
     def destroy_node(self):
         """Ensures the hardware thread shuts down cleanly."""
@@ -109,7 +92,7 @@ class CameraLaneNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = CameraLaneNode()
+    node = VideoPublisher()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
