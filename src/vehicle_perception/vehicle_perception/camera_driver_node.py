@@ -6,9 +6,9 @@ import cv2
 import threading
 import time
 
-class VideoPublisher(Node):
+class CameraDriverNode(Node):
     def __init__(self):
-        super().__init__('video_publisher')
+        super().__init__('camera_driver_node')
         
         # Parameters
         self.declare_parameter('camera_index', 0)
@@ -33,7 +33,7 @@ class VideoPublisher(Node):
             self.get_logger().error('Failed to open USB camera')
             return
             
-        self.image_pub = self.create_publisher(Image, 'camera/image_raw', 1)
+        self.image_pub = self.create_publisher(Image, 'camera/lane/raw_video', 1)
         
         # Frame buffer variables
         self.should_exit = False
@@ -50,7 +50,7 @@ class VideoPublisher(Node):
         self.timer = self.create_timer(period_ms, self.publish_frame)
         
         self.get_logger().info(f"Video publisher started at {width}x{height} @ {fps} fps")
-        self.get_logger().info("Publishing on: camera/image_raw")
+        self.get_logger().info("Publishing on: camera/lane/raw_video")
 
     def capture_loop(self):
         """Continuously pulls frames from the hardware buffer to prevent lag."""
@@ -93,7 +93,7 @@ class VideoPublisher(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = VideoPublisher()
+    node = CameraDriverNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
