@@ -15,8 +15,8 @@ class LanePerceptionNode(Node):
 
         # Declare and Get Parameters
         self.declare_parameter('camera_index', 0)
-        self.declare_parameter('width', 640)
-        self.declare_parameter('height', 480)
+        self.declare_parameter('width', 1280)
+        self.declare_parameter('height', 720)
         self.declare_parameter('fps', 60)
 
         cam_index = self.get_parameter('camera_index').value
