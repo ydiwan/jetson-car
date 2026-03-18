@@ -28,6 +28,9 @@ Thumbs.db
 #cache
 .cache/*
 
+#AI weights
+*.pth
+
 # ros log output
 *.log
 
