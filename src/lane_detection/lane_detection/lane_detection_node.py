@@ -55,6 +55,10 @@ class LaneDetectionNode(Node):
 
     def pub_img(self, publisher, img, encoding):
         """Helper to convert cv2 image to ROS Image msg and publish."""
+        # Prevent crashes
+        if img is None:
+            return
+
         try:
             img_msg = self.bridge.cv2_to_imgmsg(img, encoding=encoding)
             img_msg.header.stamp = self.get_clock().now().to_msg()
