@@ -25,7 +25,6 @@ setup(
     entry_points={
         'console_scripts': [
             'camera_lane_node = vehicle_perception.camera_lane_node:main',
-            'lane_detector_node = vehicle_perception.lane_detector_node:main',
         ],
     },
 )

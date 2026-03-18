@@ -6,7 +6,7 @@ import cv2
 import threading
 import time
 
-class VideoPublisher(Node):
+class CameraLaneNode(Node):
     def __init__(self):
         super().__init__('video_publisher')
         
@@ -23,10 +23,12 @@ class VideoPublisher(Node):
         self.bridge = CvBridge()
         
         # Open GStreamer / V4L2
-        self.cap = cv2.VideoCapture(cam_index)
+        # self.cap = cv2.VideoCapture(cam_index)
+        self.cap = cv2.VideoCapture(cam_index, cv2.CAP_V4L2)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.cap.set(cv2.CAP_PROP_FPS, fps)
+        
         
         if not self.cap.isOpened():
             self.get_logger().error('Failed to open USB camera')
@@ -92,7 +94,7 @@ class VideoPublisher(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = VideoPublisher()
+    node = CameraLaneNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

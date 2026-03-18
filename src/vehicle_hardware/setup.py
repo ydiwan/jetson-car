@@ -27,6 +27,7 @@ setup(
             'maestro_interface_node = vehicle_hardware.maestro_interface_node:main',
             'ackermann_kinematics_node = vehicle_hardware.ackermann_kinematics_node:main',
             'gpio_node = vehicle_hardware.gpio_node:main',
+            'steering_bridge_node = vehicle_hardware.steering_bridge_node:main',
         ],
     },
 )
