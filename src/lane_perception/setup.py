@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'lane_perception_node = lane_perception.lane_detection_node:main',
+            'lane_perception_node = lane_perception.lane_perception_node:main',
         ],
     },
 )
