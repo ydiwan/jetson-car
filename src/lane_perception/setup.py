@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'lane_detection'
+package_name = 'lane_perception'
 
 setup(
     name=package_name,
@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'lane_detection_node = lane_detection.lane_detection_node:main',
+            'lane_perception_node = lane_perception.lane_detection_node:main',
         ],
     },
 )
