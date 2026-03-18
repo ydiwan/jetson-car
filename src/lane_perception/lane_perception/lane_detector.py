@@ -1,7 +1,6 @@
 import rclpy
 from dataclasses import dataclass
 import numpy as np
-
 from .ld_config import LdConfig
 from .ld_preprocessor import LdPreprocessor
 from .ld_scanner import LdScanner
@@ -46,7 +45,7 @@ class LaneDetector:
         """
         Runs the frame through the entire pipeline and returns the results.
         """
-        # Preprocess the image
+        # Preprocess the image 
         processed_img = self.preprocessor.run(rgb_img)
 
         # Save masks to results

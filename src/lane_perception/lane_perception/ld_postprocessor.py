@@ -8,7 +8,6 @@ class LdPostprocessor:
         self.config = config
         self.logger = logger or rclpy.logging.get_logger('Ld_postprocessor')
 
-        # Bird View Transformation Variables 
         self.bev_left_lane = []
         self.bev_right_lane = []
         
@@ -40,7 +39,6 @@ class LdPostprocessor:
         center = img_width / 2.0
         self.center_of_image = int(center + (center * self.config.center_offset))
 
-        # Image Buffers
         self.ld_result = None
         self.bev = None
 

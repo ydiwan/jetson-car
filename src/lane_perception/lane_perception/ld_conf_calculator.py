@@ -1,7 +1,7 @@
 import rclpy
 import math
 import numpy as np
-from .ld_config import LdConfig
+from .ld_config import LdConfig 
 
 class LdConfCalculator:
     def __init__(self, config: LdConfig, center_of_image: int, logger=None):
@@ -9,11 +9,9 @@ class LdConfCalculator:
         self.center_of_image = center_of_image
         self.logger = logger or rclpy.logging.get_logger('Ld_conf_calculator')
         
-        # Positional Confidence Vars
         self.pos_conf = 0.0
         self.EXP_SCALE = -2.772588  # Scale for exponential confidence drop off
 
-        # Symmetrical Confidence Vars
         self.sym_conf = 0.0
 
     def cal_position_conf(self, target_x: int) -> float:
@@ -56,7 +54,6 @@ class LdConfCalculator:
         left_pts = np.squeeze(bev_left_lane)
         right_pts = np.squeeze(bev_right_lane)
         
-        # Handle case where there's only 1 point
         if left_pts.ndim == 1:
             left_pts = np.array([left_pts])
         if right_pts.ndim == 1:

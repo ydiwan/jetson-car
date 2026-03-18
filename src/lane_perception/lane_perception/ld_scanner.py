@@ -1,6 +1,6 @@
 import rclpy
 import numpy as np
-from .ld_config import LdConfig
+from .ld_config import LdConfig 
 
 class LdScanner:
     def __init__(self, config: LdConfig, logger=None):
@@ -11,7 +11,6 @@ class LdScanner:
         self.right_lane = []
         self.center_lane = []
         
-        # Memory variable for Single-Line Fallback
         self.known_lane_width = 350 
         
         # ROS2 Logger
@@ -63,7 +62,6 @@ class LdScanner:
                 # Check if the road width makes sense
                 if self.config.min_road_width <= road_width <= self.config.max_road_width:
                     
-                    # Since both lines are found, save the width
                     self.known_lane_width = road_width
                     
                     # Find the midpoint
@@ -79,17 +77,12 @@ class LdScanner:
                 
                 # Check if this single line is on the left half or right half of the camera
                 if seg[1] < (cols / 2):
-                    # It's the left lane
                     left_lane_right_edge = seg[1]
-                    # Simulate right lane
                     right_lane_left_edge = int(left_lane_right_edge + self.known_lane_width)
                 else:
-                    # It's the right lane
                     right_lane_left_edge = seg[0]
-                    # Simulate left lane
                     left_lane_right_edge = int(right_lane_left_edge - self.known_lane_width)
                 
-                # Calculate the center based on our simulated line
                 center_x = int((left_lane_right_edge + right_lane_left_edge) / 2)
                 
                 # Store the points just like normal!
@@ -125,7 +118,7 @@ class LdScanner:
             start = max(0, i - window_size // 2)
             end = min(n - 1, i + window_size // 2)
             
-            # Get x-values in the window, skipping the current element
+            # Get x-values in the window, skipping the current element 'i'
             window_values = [self.center_lane[j][0] for j in range(start, end + 1) if j != i]
             
             if window_values:

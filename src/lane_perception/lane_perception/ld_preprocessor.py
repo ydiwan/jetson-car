@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from .ld_config import LdConfig
+from .ld_config import LdConfig 
 
 class LdPreprocessor:
     def __init__(self, config: LdConfig):
@@ -27,7 +27,6 @@ class LdPreprocessor:
         height = rgb_img.shape[0]
         start_row = height - int(height / self.config.scale_height)
         
-        # Crop the image
         cropped_img = rgb_img[start_row:height, :]
         
         # Scale resolution

@@ -6,11 +6,11 @@ from cv_bridge import CvBridge
 import cv2
 from .lane_detector import LaneDetector
 
-class LaneDetectionNode(Node):
+class LanePerceptionNode(Node):
     def __init__(self):
-        super().__init__('lane_detection_node')
+        super().__init__('lane_perception_node')
         
-        # Initialize 
+        # Initialize
         self.ld = LaneDetector(self) 
 
         # Declare and Get Parameters
@@ -37,8 +37,8 @@ class LaneDetectionNode(Node):
             return
 
         # Setup Publishers
-        self.raw_video_pub = self.create_publisher(Image, 'camera/raw_video', 1)
-        self.result_img_pub = self.create_publisher(Image, 'camera/lane_detection_result', 1)
+        self.raw_video_pub = self.create_publisher(Image, 'camera/lane/raw_video', 1)
+        self.result_img_pub = self.create_publisher(Image, 'camera/lane_perception_result', 1)
         self.bev_img_pub = self.create_publisher(Image, 'camera/bev', 1)
         self.mask_img_pub = self.create_publisher(Image, 'camera/bin_mask', 1)
         self.filter_img_pub = self.create_publisher(Image, 'camera/filter_bin_mask', 1)
@@ -47,7 +47,7 @@ class LaneDetectionNode(Node):
         self.position_confidence_pub = self.create_publisher(Float64, 'lane_detect/position_confidence', 1)
         self.symmetry_confidence_pub = self.create_publisher(Float64, 'lane_detect/symmetry_confidence', 1)
 
-        self.get_logger().info('lane_detection_node has started')
+        self.get_logger().info('lane_perception_node has started')
 
         # Create Timer to trigger frame processing
         timer_period = 1.0 / fps
@@ -55,10 +55,6 @@ class LaneDetectionNode(Node):
 
     def pub_img(self, publisher, img, encoding):
         """Helper to convert cv2 image to ROS Image msg and publish."""
-        # Prevent crashes
-        if img is None:
-            return
-
         try:
             img_msg = self.bridge.cv2_to_imgmsg(img, encoding=encoding)
             img_msg.header.stamp = self.get_clock().now().to_msg()
@@ -105,7 +101,7 @@ class LaneDetectionNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = LaneDetectionNode()
+    node = LanePerceptionNode()
     
     try:
         rclpy.spin(node)
