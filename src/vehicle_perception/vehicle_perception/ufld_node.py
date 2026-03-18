@@ -11,12 +11,21 @@ import scipy.special
 import sys
 import os
 
-# Point this to exactly where the UFLD repo lives on your Jetson
-UFLD_PATH = '/home/youssef/rework/Ultra-Fast-Lane-Detection-v2'
-sys.path.append(UFLD_PATH)
+HOME = os.path.expanduser("~")
+UFLD_FOLDER_NAME = 'Ultra-Fast-Lane-Detection-v2' 
+UFLD_PATH = os.path.join(HOME, 'youssef/rework', UFLD_FOLDER_NAME)
 
-from utils.config import Config
-from utils.factory import get_model
+if not os.path.exists(UFLD_PATH):
+    print(f"CRITICAL ERROR: UFLD path not found at {UFLD_PATH}")
+else:
+    sys.path.append(UFLD_PATH)
+
+try:
+    from utils.config import Config
+    from utils.factory import get_model
+except ImportError as e:
+    print(f"IMPORT ERROR: Could not find UFLD modules. Check if {UFLD_PATH} contains 'utils' folder.")
+    raise e
 
 class UFLDNode(Node):
     def __init__(self):
