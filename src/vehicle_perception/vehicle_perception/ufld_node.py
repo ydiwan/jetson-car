@@ -12,17 +12,17 @@ import sys
 import os
 
 HOME = os.path.expanduser("~")
-UFLD_FOLDER_NAME = 'Ultra-Fast-Lane-Detection-v2' 
+UFLD_FOLDER_NAME = 'Ultra-Fast-Lane-Detection-V2' 
 UFLD_PATH = os.path.join(HOME, 'youssef/rework', UFLD_FOLDER_NAME)
 
 if not os.path.exists(UFLD_PATH):
-    print(f"CRITICAL ERROR: UFLD path not found at {UFLD_PATH}")
+    print(f"CRITICAL ERROR: UFLD path not found at {UFLD_PATH}  ")
 else:
     sys.path.append(UFLD_PATH)
 
 try:
     from utils.config import Config
-    from utils.factory import get_model
+    from utils.common import get_model
 except ImportError as e:
     print(f"IMPORT ERROR: Could not find UFLD modules. Check if {UFLD_PATH} contains 'utils' folder.")
     raise e
@@ -45,11 +45,16 @@ class UFLDNode(Node):
         self.net = get_model(self.cfg)
         
         # Load the Weights
-        weights_path = os.path.join(UFLD_PATH, 'curvelanes_resnet18.pth')
+        weights_path = os.path.join(UFLD_PATH, 'curvelanes_res18.pth')
         state_dict = torch.load(weights_path, map_location=self.device)
-        self.net.load_state_dict(state_dict['model'])
-        self.net.to(self.device)
-        self.net.eval() # Set to evaluation mode!
+        
+        # Strip module prefix from multi-gpu training
+        clean_state_dict = {}
+        for k, v in state_dict['model'].items():
+            name = k.replace('module.', '') if k.startswith('module.') else k
+            clean_state_dict[name] = v
+        
+        self.net.load_state_dict(clean_state_dict)
 
         # Image Preprocessing Pipeline
         self.img_transform = transforms.Compose([
@@ -58,10 +63,10 @@ class UFLDNode(Node):
         ])
 
         # ROS Communications
-        self.image_sub = self.create_subscription(Image, '/camera/image_raw', self.image_callback, 10)
+        self.image_sub = self.create_subscription(Image, '/camera/lane/raw_video', self.image_callback, 10)
         self.delta_pub = self.create_publisher(Int32, 'lane_detect/delta', 1)
         self.conf_pub = self.create_publisher(Float64, 'lane_detect/position_confidence', 1)
-        self.debug_pub = self.create_publisher(Image, '/camera/ufld_debug', 1)
+        self.debug_pub = self.create_publisher(Image, '/camera/lane_perception_result', 1)
 
         self.get_logger().info("AI Perception Pipeline is LIVE.")
 
@@ -84,28 +89,31 @@ class UFLDNode(Node):
 
         # Parse output
         # UFLD v2 parsing logic to extract X coordinates
-        col_sample = np.linspace(0, self.cfg.train_width - 1, self.cfg.num_points)
-        col_sample_w = col_sample[1] - col_sample[0]
-        out_j = out[0].data.cpu().numpy()
-        out_j = out_j[:, ::-1, :]
-        prob = scipy.special.softmax(out_j[:-1, :, :], axis=0)
-        idx = np.arange(self.cfg.num_points) + 1
-        idx = idx.reshape(-1, 1, 1)
-        loc = np.sum(prob * idx, axis=0)
-        out_j = np.argmax(out_j, axis=0)
-        loc[out_j == self.cfg.num_points] = 0
-        out_j = loc
-        
-        # Scale the coordinates back up to 1280x720 camera resolution
-        width_ratio = original_w / self.cfg.train_width
-        
-        # Find the bottom-most points of the detected lanes
-        # CurveLanes detects up to 14 lines, only get the two closest to the center
         valid_lanes_x = []
-        for i in range(out_j.shape[1]):
-            bottom_x = out_j[-1, i] # Grab the X coordinate at the bottom row
-            if bottom_x > 0:
-                valid_lanes_x.append(bottom_x * width_ratio)
+        try:
+            loc_row = out['loc_row']      # (batch, num_grid_row, num_row, num_lanes)
+            exist_row = out['exist_row']  # (batch, 2, num_row, num_lanes)
+            
+            # Get the predicted grid positions and existence confidence
+            max_indices = loc_row.argmax(1)[0].cpu().numpy() # (num_row, num_lanes)
+            valid = exist_row.argmax(1)[0].cpu().numpy()     
+            
+            num_row_anchors, num_lanes = max_indices.shape
+            num_grid_row = loc_row.shape[1]
+            
+            # Find the bottom-most valid X coordinate for each detected lane
+            for i in range(num_lanes):
+                # Search from the bottom of the image upwards
+                for r in reversed(range(num_row_anchors)):
+                    if valid[r, i] == 1:
+                        grid_idx = max_indices[r, i]
+                        # Convert grid cell index to original pixel X coordinate
+                        x_coord = (grid_idx + 0.5) * (original_w / num_grid_row)
+                        valid_lanes_x.append(x_coord)
+                        break
+        except Exception as e:
+            self.get_logger().error(f"Parsing error: {e}")
+            return
 
         valid_lanes_x.sort()
         

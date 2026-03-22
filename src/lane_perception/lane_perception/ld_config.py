@@ -8,7 +8,8 @@ class LdConfig:
         node.declare_parameter("scale_res", 0.53)
         node.declare_parameter("input_img_width", 1280)
         node.declare_parameter("steps", 3)
-        node.declare_parameter("min_area", 100)
+        node.declare_parameter("min_area", 100) # old
+        # node.declare_parameter("min_area", 50)
         node.declare_parameter("max_area", 2000)
         node.declare_parameter("min_lane_width", 8)
         node.declare_parameter("max_lane_width", 20)
@@ -20,10 +21,16 @@ class LdConfig:
         node.declare_parameter("position_conf_threshold", 0.1)
 
         # Bird-Eye View transformation parameters
-        node.declare_parameter("top_left_src", [174.0, 100.0])
-        node.declare_parameter("top_right_src", [496.0, 0.0])
-        node.declare_parameter("btm_left_src", [30.0, 100.0])
-        node.declare_parameter("btm_right_src", [627.0, 0.0])
+        # node.declare_parameter("top_left_src", [174.0, 100.0])
+        # node.declare_parameter("top_right_src", [496.0, 0.0])
+        # node.declare_parameter("btm_left_src", [30.0, 100.0])
+        # node.declare_parameter("btm_right_src", [627.0, 0.0])
+        
+        node.declare_parameter("top_left_src", [129.0, 13.0])
+        node.declare_parameter("top_right_src", [558.0, 13.0])
+        node.declare_parameter("btm_left_src", [3.0, 111.0])
+        node.declare_parameter("btm_right_src", [674.0, 104.0])
+        
 
         # Retrieve and store parameters
         self.scale_height = node.get_parameter("scale_height").value

@@ -25,10 +25,10 @@ Thumbs.db
 *.bak
 *.backup
 
-#cache
+# Cache
 .cache/*
 
-#AI weights
+# AI weights
 *.pth
 
 # ros log output

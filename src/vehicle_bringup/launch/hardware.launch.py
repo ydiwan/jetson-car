@@ -1,17 +1,22 @@
 import os
 from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, TimerAction
 from launch.conditions import IfCondition, LaunchConfigurationEquals
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
+
 def generate_launch_description():
     
     # Declare launch configurations
-    hardware_type = LaunchConfiguration('hardware_type')
-    show_sim = LaunchConfiguration('show_sim')
+    hardware_type = LaunchConfiguration('hardware_type', default='real')
+    show_sim = LaunchConfiguration('show_sim', default='false')
+    spawn_x = LaunchConfiguration('x', default='2.6')
+    spawn_y = LaunchConfiguration('y', default='-1.1')
+    spawn_z = LaunchConfiguration('z', default='0.15')
+    spawn_yaw = LaunchConfiguration('yaw', default='-1.57')
     
     # Get URDF path
     urdf_file = os.path.join(
@@ -21,6 +26,13 @@ def generate_launch_description():
     )
     with open(urdf_file, 'r') as infp:
         robot_desc = infp.read()
+        
+    # Get World path
+    world_file = os.path.join(
+        get_package_share_directory('vehicle_bringup'),
+        'worlds',
+        'cyber_city.sdf'
+    )
     
     # Checks to iss if gazebo is available
     try:
@@ -33,7 +45,7 @@ def generate_launch_description():
         gz_launch_path = "gazebo_not_installed"    
     
     # Only launch gazebo if hardware is simulated and show_sim is true
-    launch_gazebo_condition = IfCondition(
+    launch_sim_condition = IfCondition(
         PythonExpression(["'", hardware_type, "' == 'simulated' and '", show_sim, "' == 'true'"])
     )
 
@@ -48,8 +60,29 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'show_sim',
             default_value='true',
-            description='Whether to launch Gazebo/RViz when in simulated mode'
+            description='Whether to launch Gazebo/RViz when in simulated mode: true or false'
         ),
+        DeclareLaunchArgument(
+            'x', 
+            default_value='2.6',
+            description='X value for robot spawn'
+        ),
+        DeclareLaunchArgument(
+            'y', 
+            default_value='-1.1',
+            description='Y value for robot spawn'
+        ),
+        DeclareLaunchArgument(
+            'z', 
+            default_value='0.15',
+            description='Y value for robot spawn'
+        ),
+        DeclareLaunchArgument(
+            'yaw',
+            default_value='-1.57',
+            description='Direction robot is facing upon spawn'
+        ),
+        
         
         # Robot State Publisher 
         Node(
@@ -65,7 +98,7 @@ def generate_launch_description():
             package='rviz2',
             executable='rviz2',
             name='rviz2',
-            condition=LaunchConfigurationEquals('hardware_type', 'simulated'),
+            condition=launch_sim_condition,
             output='screen'
         ),
         
@@ -77,19 +110,27 @@ def generate_launch_description():
             output='screen'
         ),
         
-        # Launch empty gazebo world
+        # Launch cyber-city gazebo world
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(gz_launch_path),
-            launch_arguments={'gz_args': '-r empty.sdf'}.items(),
-            condition=launch_gazebo_condition
+            launch_arguments={'gz_args': f'-r {world_file}'}.items(),
+            condition=launch_sim_condition
         ),
         
         # Spawn robot
         Node(
             package='ros_gz_sim',
             executable='create',
-            arguments=['-string', robot_desc, '-name', 'jetson_car', '-allow_renaming', 'true'],
-            condition=launch_gazebo_condition,
+            arguments=[
+                '-string', robot_desc,
+                '-name', 'jetson_car',
+                '-allow_renaming', 'true',
+                '-x', spawn_x,
+                '-y', spawn_y,
+                '-z', spawn_z,
+                '-Y', spawn_yaw
+            ],
+            condition=launch_sim_condition,
             output='screen'
         ),
         
@@ -99,6 +140,7 @@ def generate_launch_description():
             executable='parameter_bridge',
             arguments=[
                 '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
+                '/camera/lane/raw_video@sensor_msgs/msg/Image[gz.msgs.Image'
             ],
             condition=LaunchConfigurationEquals('hardware_type', 'simulated'),
             output='screen'
