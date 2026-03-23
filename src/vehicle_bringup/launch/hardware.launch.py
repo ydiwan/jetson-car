@@ -13,7 +13,7 @@ def generate_launch_description():
     # Declare launch configurations
     hardware_type = LaunchConfiguration('hardware_type', default='real')
     show_sim = LaunchConfiguration('show_sim', default='false')
-    spawn_x = LaunchConfiguration('x', default='2.6')
+    spawn_x = LaunchConfiguration('x', default='2.4')
     spawn_y = LaunchConfiguration('y', default='-1.1')
     spawn_z = LaunchConfiguration('z', default='0.15')
     spawn_yaw = LaunchConfiguration('yaw', default='-1.57')
@@ -31,7 +31,7 @@ def generate_launch_description():
     world_file = os.path.join(
         get_package_share_directory('vehicle_bringup'),
         'worlds',
-        'cyber_city.sdf'
+        'cyber_city_custom.sdf'
     )
     
     # Checks to iss if gazebo is available
@@ -64,7 +64,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'x', 
-            default_value='2.6',
+            default_value='2.4',
             description='X value for robot spawn'
         ),
         DeclareLaunchArgument(
@@ -82,7 +82,6 @@ def generate_launch_description():
             default_value='-1.57',
             description='Direction robot is facing upon spawn'
         ),
-        
         
         # Robot State Publisher 
         Node(

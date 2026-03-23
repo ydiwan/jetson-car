@@ -1,0 +1,38 @@
+/lane_perception_node:
+    ros_parameters:
+      top_left_src: [220.0, 60.0]
+      top_right_src: [458.0, 60.0]
+      btm_left_src: [30.0, 190.0]
+      btm_right_src: [648.0, 190.0]
+      camera_index: 0
+      center_offset: 0.0
+      fps: 60
+      height: 720
+      width: 1280
+      input_img_width: 1280
+      min_area: 100
+      max_area: 8000
+      min_lane_width: 8
+      max_lane_width: 40
+      min_road_width: 200
+      max_road_width: 500
+      median_threshold: 5.0
+      median_window: 10
+      position_conf_threshold: 0
+      scale_height: 2
+      scale_res: 0.53
+      steps: 3
+/ackermann_kinematics_node:
+  ros_parameters:
+    max_steer_angle: 0.148
+    wheelbase: 0.52
+/maestro_interface_node:
+  ros_parameters:
+    left_enable_channel: 1
+    right_enable_channel: 2
+    max_steer_angle: 0.52
+    servo_center: 1500
+    servo_max: 1800
+    servo_min: 900
+    servo_usb: "/devttyACM0"
+    steer_channel: 0

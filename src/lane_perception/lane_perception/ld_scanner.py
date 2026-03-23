@@ -42,8 +42,10 @@ class LdScanner:
                 segments = np.split(nonzero_indices, split_points)
 
                 for seg in segments:
-                    if len(lane_segments) == 2:
-                        break # We only need the left and right lane
+                    # Scans entire road for lanes
+                    segment_start = seg[0]
+                    segment_end = seg[-1]
+                    lane_width = segment_end - segment_start
                     
                     segment_start = seg[0]
                     segment_end = seg[-1]

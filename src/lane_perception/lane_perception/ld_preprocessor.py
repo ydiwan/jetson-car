@@ -44,8 +44,8 @@ class LdPreprocessor:
         self.hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
 
         # Get White mask
-        lower_white = np.array([0, 0, 190])
-        upper_white = np.array([180, 60, 255])
+        lower_white = np.array([0, 0, 130])
+        upper_white = np.array([180, 80, 255])
         self.white_mask = cv2.inRange(self.hsv_img, lower_white, upper_white)
 
         # Get Yellow mask

@@ -91,23 +91,22 @@ class UFLDNode(Node):
         # UFLD v2 parsing logic to extract X coordinates
         valid_lanes_x = []
         try:
-            loc_row = out['loc_row']      # (batch, num_grid_row, num_row, num_lanes)
-            exist_row = out['exist_row']  # (batch, 2, num_row, num_lanes)
+            loc_row = out['loc_row']      
+            exist_row = out['exist_row']  
             
-            # Get the predicted grid positions and existence confidence
-            max_indices = loc_row.argmax(1)[0].cpu().numpy() # (num_row, num_lanes)
+            max_indices = loc_row.argmax(1)[0].cpu().numpy() 
             valid = exist_row.argmax(1)[0].cpu().numpy()     
             
             num_row_anchors, num_lanes = max_indices.shape
             num_grid_row = loc_row.shape[1]
             
-            # Find the bottom-most valid X coordinate for each detected lane
+            lookahead_start = int(num_row_anchors * 0.6) 
+            
             for i in range(num_lanes):
-                # Search from the bottom of the image upwards
-                for r in reversed(range(num_row_anchors)):
+                # Search from the lookahead point down towards the bumper
+                for r in range(lookahead_start, num_row_anchors):
                     if valid[r, i] == 1:
                         grid_idx = max_indices[r, i]
-                        # Convert grid cell index to original pixel X coordinate
                         x_coord = (grid_idx + 0.5) * (original_w / num_grid_row)
                         valid_lanes_x.append(x_coord)
                         break
@@ -130,17 +129,19 @@ class UFLDNode(Node):
             elif x > image_center and right_x == -1:
                 right_x = x
 
+        lane_width_at_lookahead = 250
+        
         # Calculate steering delta
         if left_x != -1 and right_x != -1:
             lane_center = (left_x + right_x) / 2
             delta = int(lane_center - image_center)
             confidence = 0.95
         elif left_x != -1: # Missing right line fallback
-            lane_center = left_x + 450 # Actual pixel length of the road
+            lane_center = left_x + lane_width_at_lookahead # Actual pixel length of the road
             delta = int(lane_center - image_center)
             confidence = 0.60
         elif right_x != -1: # Missing left line fallback
-            lane_center = right_x - 450 
+            lane_center = right_x - lane_width_at_lookahead 
             delta = int(lane_center - image_center)
             confidence = 0.60
         else:
@@ -150,14 +151,16 @@ class UFLDNode(Node):
         self.delta_pub.publish(Int32(data=delta))
         self.conf_pub.publish(Float64(data=confidence))
 
-        # Debugging
+        # Debug Drawing
+        draw_y = int(original_h * 0.6)
+        
         if self.debug_pub.get_subscription_count() > 0:
             if left_x != -1:
-                cv2.circle(frame, (int(left_x), original_h - 50), 15, (255, 0, 0), -1)
+                cv2.circle(frame, (int(left_x), draw_y), 15, (255, 0, 0), -1)
             if right_x != -1:
-                cv2.circle(frame, (int(right_x), original_h - 50), 15, (0, 0, 255), -1)
+                cv2.circle(frame, (int(right_x), draw_y), 15, (0, 0, 255), -1)
             
-            cv2.circle(frame, (int(image_center + delta), original_h - 50), 15, (0, 255, 0), -1)
+            cv2.circle(frame, (int(image_center + delta), draw_y), 15, (0, 255, 0), -1)
             
             debug_msg = self.bridge.cv2_to_imgmsg(frame, "bgr8")
             self.debug_pub.publish(debug_msg)
