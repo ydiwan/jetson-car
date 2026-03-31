@@ -28,6 +28,8 @@ setup(
             'ackermann_kinematics_node = vehicle_hardware.ackermann_kinematics_node:main',
             'gpio_node = vehicle_hardware.gpio_node:main',
             'steering_bridge_node = vehicle_hardware.steering_bridge_node:main',
+            'sim_ground_truth_node = vehicle_hardware.sim_ground_truth_node:main',
+            'ackermann_teleop = vehicle_hardware.ackermann_teleop:main',
         ],
     },
 )

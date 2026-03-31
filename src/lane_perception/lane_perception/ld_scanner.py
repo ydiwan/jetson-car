@@ -6,143 +6,133 @@ class LdScanner:
     def __init__(self, config: LdConfig, logger=None):
         self.config = config
         
-        # Lane Data Storage - storing as (x, y) tuples
+        # Lane Data Storage
         self.left_lane = []
         self.right_lane = []
         self.center_lane = []
         
-        self.known_lane_width = 350 
+        self.known_lane_width = 415 
+        
+        # Sliding Window Parameters
+        self.margin = 60  # Width of the window (+/- margin)
+        self.minpix = 5   # Min pixels needed to recenter the window
         
         # ROS2 Logger
         self.logger = logger or rclpy.logging.get_logger('Ld_scanner')
 
     def run(self, bin_mask: np.ndarray) -> bool:
-        """
-        Scans binary images for lane line segments based on width and position.
-        Returns True if more than 3 lane points are found.
-        """
-        # Reset the lane pixel coordinate vectors
         self.left_lane.clear()
         self.right_lane.clear()
         self.center_lane.clear()
 
         rows, cols = bin_mask.shape
+        self.margin = 120  
 
-        # Scan rows based on the configured step size
-        for y in range(0, rows, self.config.steps):
-            lane_segments = []
-            
-            # Extract the whole row and find indices of all white pixels (>0)
+        # Histogram on the bottom half
+        bottom_half = bin_mask[rows//2:, :]
+        histogram = np.sum(bottom_half, axis=0)
+
+        midpoint = cols // 2
+        leftx_base = np.argmax(histogram[:midpoint])
+        rightx_base = np.argmax(histogram[midpoint:]) + midpoint
+        
+        # Rigid Fallback for the starting bases
+        if histogram[leftx_base] < 10 and histogram[rightx_base] > 10:
+            leftx_base = rightx_base - self.known_lane_width
+        elif histogram[rightx_base] < 10 and histogram[leftx_base] > 10:
+            rightx_base = leftx_base + self.known_lane_width
+        elif histogram[leftx_base] < 10 and histogram[rightx_base] < 10:
+            return False 
+
+        # Force the bases to perfectly match the known physical width
+        current_base_width = rightx_base - leftx_base
+        if abs(current_base_width - self.known_lane_width) > 50: 
+            if histogram[leftx_base] > histogram[rightx_base]:
+                rightx_base = leftx_base + self.known_lane_width # Force right into position
+            else:
+                leftx_base = rightx_base - self.known_lane_width # Force left into position
+
+        leftx_current = leftx_base
+        rightx_current = rightx_base
+
+        # Slide the windows
+        y_steps = range(rows - 1, 0, -self.config.steps)
+        
+        for y in y_steps:
+            win_xleft_low = max(0, leftx_current - self.margin)
+            win_xleft_high = min(cols, leftx_current + self.margin)
+            win_xright_low = max(0, rightx_current - self.margin)
+            win_xright_high = min(cols, rightx_current + self.margin)
+
             row = bin_mask[y, :]
-            nonzero_indices = np.nonzero(row)[0]
-            
-            if len(nonzero_indices) > 0:
-                # Find gaps greater than 1 to separate contiguous line segments
-                split_points = np.where(np.diff(nonzero_indices) > 1)[0] + 1
-                segments = np.split(nonzero_indices, split_points)
 
-                for seg in segments:
-                    # Scans entire road for lanes
-                    segment_start = seg[0]
-                    segment_end = seg[-1]
-                    lane_width = segment_end - segment_start
-                    
-                    segment_start = seg[0]
-                    segment_end = seg[-1]
-                    lane_width = segment_end - segment_start
-                    
-                    # Check if the segment width matches what a lane should look like
-                    if self.config.min_lane_width <= lane_width <= self.config.max_lane_width:
-                        lane_segments.append((segment_start, segment_end))
-            
-            if len(lane_segments) >= 2:
-                left_lane_right_edge = lane_segments[0][1]
-                right_lane_left_edge = lane_segments[-1][0]
-                
-                road_width = abs(right_lane_left_edge - left_lane_right_edge)
-                
-                # Check if the road width makes sense
-                if self.config.min_road_width <= road_width <= self.config.max_road_width:
-                    
-                    self.known_lane_width = road_width
-                    
-                    # Find the midpoint
-                    center_x = int((left_lane_right_edge + right_lane_left_edge) / 2)
-                    
-                    # Store the points
-                    self.center_lane.append((center_x, y))
-                    self.right_lane.append((right_lane_left_edge, y))
-                    self.left_lane.append((left_lane_right_edge, y))
-                    
-            elif len(lane_segments) == 1:
-                seg = lane_segments[0]
-                
-                # Check if this single line is on the left half or right half of the camera
-                if seg[1] < (cols / 2):
-                    left_lane_right_edge = seg[1]
-                    right_lane_left_edge = int(left_lane_right_edge + self.known_lane_width)
-                else:
-                    right_lane_left_edge = seg[0]
-                    left_lane_right_edge = int(right_lane_left_edge - self.known_lane_width)
-                
-                center_x = int((left_lane_right_edge + right_lane_left_edge) / 2)
-                
-                # Store the points just like normal!
-                self.center_lane.append((center_x, y))
-                self.right_lane.append((right_lane_left_edge, y))
-                self.left_lane.append((left_lane_right_edge, y))
+            good_left_inds = np.nonzero(row[win_xleft_low:win_xleft_high])[0] + win_xleft_low
+            good_right_inds = np.nonzero(row[win_xright_low:win_xright_high])[0] + win_xright_low
 
-        # Do a median filter to remove outlier points 
+            found_left = len(good_left_inds) > self.minpix
+            found_right = len(good_right_inds) > self.minpix
+
+            if found_left:
+                leftx_current = int(np.mean(good_left_inds))
+            if found_right:
+                rightx_current = int(np.mean(good_right_inds))
+
+            # Never update known_lane_width. If one line vanishes, rigidly project the other.
+            if found_left and not found_right:
+                rightx_current = leftx_current + self.known_lane_width
+            elif found_right and not found_left:
+                leftx_current = rightx_current - self.known_lane_width
+            elif found_left and found_right:
+                # Even if both are found, enforce the rigid structure to prevent collapse
+                actual_width = rightx_current - leftx_current
+                if abs(actual_width - self.known_lane_width) > 50:
+                    if len(good_left_inds) > len(good_right_inds):
+                        rightx_current = leftx_current + self.known_lane_width
+                    else:
+                        leftx_current = rightx_current - self.known_lane_width
+
+            center_x = int((leftx_current + rightx_current) / 2)
+            
+            self.left_lane.append((leftx_current, y))
+            self.right_lane.append((rightx_current, y))
+            self.center_lane.append((center_x, y))
+
+        self.left_lane.reverse()
+        self.right_lane.reverse()
+        self.center_lane.reverse()
+
         self.median_filter()
 
-        # Return True if we found enough points
-        return len(self.left_lane) > 3
+        return len(self.center_lane) > 3
 
     def median_filter(self):
-        """
-        Does a sliding window median filter on the left, right, and center lane scan results.
-        """
+        """ Sliding window median filter on the scan results """
         if not self.center_lane:
             return
 
-        filtered_center = []
-        filtered_left = []
-        filtered_right = []
-        
+        filtered_center, filtered_left, filtered_right = [], [], []
         window_size = self.config.median_window
         threshold = self.config.median_threshold
-        
         n = len(self.center_lane)
         
-        # Go through every element
         for i in range(n):
-            # Calculate current window start and end index
             start = max(0, i - window_size // 2)
             end = min(n - 1, i + window_size // 2)
-            
-            # Get x-values in the window, skipping the current element 'i'
             window_values = [self.center_lane[j][0] for j in range(start, end + 1) if j != i]
             
             if window_values:
-                # Calculate median
                 median_val = np.median(window_values)
-                
-                # Check if the current index is within the threshold
                 if abs(self.center_lane[i][0] - median_val) <= threshold:
                     filtered_center.append(self.center_lane[i])
                     filtered_left.append(self.left_lane[i])
                     filtered_right.append(self.right_lane[i])
             else:
-                # Keep first/last points if no neighbors
                 filtered_center.append(self.center_lane[i])
                 filtered_left.append(self.left_lane[i])
                 filtered_right.append(self.right_lane[i])
 
         if filtered_center:
-            # Assign the new filtered values
-            self.left_lane = filtered_left
-            self.right_lane = filtered_right
-            self.center_lane = filtered_center
+            self.left_lane, self.right_lane, self.center_lane = filtered_left, filtered_right, filtered_center
         else:
             self.logger.debug("The scanner found no valid lanes after filtering")
 

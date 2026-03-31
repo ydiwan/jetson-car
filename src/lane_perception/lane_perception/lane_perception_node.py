@@ -33,6 +33,7 @@ class LanePerceptionNode(Node):
         self.bev_img_pub = self.create_publisher(Image, 'camera/bev', 1)
         self.mask_img_pub = self.create_publisher(Image, 'camera/bin_mask', 1)
         self.filter_img_pub = self.create_publisher(Image, 'camera/filter_bin_mask', 1)
+        self.scanner_mask_pub = self.create_publisher(Image, 'camera/scanner_bin_mask', 1)
         
         self.delta_pub = self.create_publisher(Int32, 'lane_detect/delta', 1)
         self.position_confidence_pub = self.create_publisher(Float64, 'lane_detect/position_confidence', 1)
@@ -95,6 +96,7 @@ class LanePerceptionNode(Node):
         self.pub_img(self.bev_img_pub, results.bev, 'bgr8')
         self.pub_img(self.mask_img_pub, results.bin_mask, 'mono8')
         self.pub_img(self.filter_img_pub, results.filter_mask, 'mono8')
+        self.pub_img(self.scanner_mask_pub, results.scanner_mask, 'mono8')
 
     def pub_img(self, publisher, img, encoding):
         """Helper to convert cv2 image to ROS Image msg and publish."""

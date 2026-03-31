@@ -3,8 +3,9 @@ from ament_index_python.packages import get_package_share_directory, PackageNotF
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, TimerAction
 from launch.conditions import IfCondition, LaunchConfigurationEquals
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration, PythonExpression, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
@@ -17,6 +18,7 @@ def generate_launch_description():
     spawn_y = LaunchConfiguration('y', default='-1.1')
     spawn_z = LaunchConfiguration('z', default='0.15')
     spawn_yaw = LaunchConfiguration('yaw', default='-1.57')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     
     # Get URDF path
     urdf_file = os.path.join(
@@ -34,7 +36,21 @@ def generate_launch_description():
         'cyber_city_custom.sdf'
     )
     
-    # Checks to iss if gazebo is available
+    # Get EKF config path
+    ekf_config_path = os.path.join(
+        get_package_share_directory('sensor_fusion'),
+        'config',
+        'ekf.yaml'
+    )
+    
+    # Get Rviz config path
+    rviz_config_file = os.path.join(
+        get_package_share_directory('vehicle_bringup'),
+        'rviz',
+        'nav2.rviz'
+    )
+    
+    # Checks to see if gazebo is available
     try:
         gz_launch_path = os.path.join(
             get_package_share_directory('ros_gz_sim'), 
@@ -48,6 +64,8 @@ def generate_launch_description():
     launch_sim_condition = IfCondition(
         PythonExpression(["'", hardware_type, "' == 'simulated' and '", show_sim, "' == 'true'"])
     )
+    
+    use_sim_time_param = {'use_sim_time': use_sim_time}
 
     return LaunchDescription([
         
@@ -82,6 +100,11 @@ def generate_launch_description():
             default_value='-1.57',
             description='Direction robot is facing upon spawn'
         ),
+        DeclareLaunchArgument(
+            'use_sim_time',
+            default_value='false',
+            description='Use gazebo clock'    
+        ),
         
         # Robot State Publisher 
         Node(
@@ -89,7 +112,7 @@ def generate_launch_description():
             executable='robot_state_publisher',
             name='robot_state_publisher',
             output='screen',
-            parameters=[{'robot_description': robot_desc}]
+            parameters=[{'robot_description': robot_desc}, use_sim_time_param],
         ),
         
         # Rviz (only if hardware is simulated)
@@ -98,6 +121,8 @@ def generate_launch_description():
             executable='rviz2',
             name='rviz2',
             condition=launch_sim_condition,
+            parameters=[use_sim_time_param],
+            arguments=['-d', rviz_config_file],
             output='screen'
         ),
         
@@ -106,7 +131,19 @@ def generate_launch_description():
             package='sensor_fusion',
             executable='odometry_estimator_node',
             name='odometry_estimator_node',
-            output='screen'
+            condition=LaunchConfigurationEquals('hardware_type', 'real'),
+            parameters=[use_sim_time_param],
+            output='screen',
+        ),
+        
+        # Extended kalman filter
+        Node(
+            package='robot_localization',
+            executable='ekf_node',
+            name='ekf_filter_node',
+            condition=LaunchConfigurationEquals('hardware_type', 'real'),
+            output='screen',
+            parameters=[ekf_config_path, use_sim_time_param]
         ),
         
         # Launch cyber-city gazebo world
@@ -138,8 +175,13 @@ def generate_launch_description():
             package='ros_gz_bridge',
             executable='parameter_bridge',
             arguments=[
+                '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
                 '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
-                '/camera/lane/raw_video@sensor_msgs/msg/Image[gz.msgs.Image'
+                '/camera/lane/raw_video@sensor_msgs/msg/Image[gz.msgs.Image',
+                '/model/jetson_car/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry',
+            ],
+            remappings=[
+                ('/model/jetson_car/odometry', '/odom')
             ],
             condition=LaunchConfigurationEquals('hardware_type', 'simulated'),
             output='screen'
@@ -151,9 +193,19 @@ def generate_launch_description():
             executable='joint_state_publisher',
             name='joint_state_publisher',
             condition=LaunchConfigurationEquals('hardware_type', 'simulated'),
+            parameters=[{'robot_description': robot_desc}, use_sim_time_param],
             output='screen'
         ),
 
+        # Vicon Type Converter
+        # Node(
+        #     package='sensor_fusion',
+        #     executable='vicon_converter_node',
+        #     name='vicon_converter_node',
+        #     condition=LaunchConfigurationEquals('hardware_type', 'simulated'),
+        #     output='screen'
+        # ),
+        
         # Hardware Interfaces
         Node(
             package='vehicle_hardware', 
@@ -176,6 +228,16 @@ def generate_launch_description():
             executable='gpio_node',
             name='gpio_node',
             condition=LaunchConfigurationEquals('hardware_type', 'real'),
+            output='screen'
+        ),
+        
+        # Ground truth tf for sim
+        Node(
+            package='vehicle_hardware',
+            executable='sim_ground_truth_node',
+            name='sim_ground_truth_node',
+            parameters=[use_sim_time_param],
+            condition=LaunchConfigurationEquals('hardware_type', 'simulated'),
             output='screen'
         ),
     ])

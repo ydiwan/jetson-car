@@ -12,17 +12,11 @@ def generate_launch_description():
     # Declare launch arguments
     hardware_type = LaunchConfiguration('hardware_type', default='real')
     show_sim = LaunchConfiguration('show_sim', default='false')
-    enable_ai = LaunchConfiguration('enable_ai',  default='false')
-    enable_drive = LaunchConfiguration('enable_drive', default='true')
+    enable_drive = LaunchConfiguration('enable_drive', default='false')
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
 
     # Path to bringup package
     bringup_dir = get_package_share_directory('vehicle_bringup')
-    
-    # Hardware camera driver condition
-    launch_cam_condition = IfCondition(
-        PythonExpression(["'", hardware_type, "' == 'real' and '", enable_ai, "' == 'true'"])
-    )
     
     use_sim_time_param = {'use_sim_time': use_sim_time}
     
@@ -40,13 +34,8 @@ def generate_launch_description():
             description='Whether to launch Gazebo/RViz when in simulated mode: true or false'
         ),
         DeclareLaunchArgument(
-            'enable_ai',
-            default_value='false',
-            description='Whether to use UFLD (AI) or OpenCV for lane detection'
-        ),
-        DeclareLaunchArgument(
             'enable_drive',
-            default_value='true',
+            default_value='false',
             description='Whether automatic driving will be enabled'
         ),
         DeclareLaunchArgument(
@@ -72,30 +61,19 @@ def generate_launch_description():
             package='vehicle_perception', 
             executable='camera_driver_node',
             name='camera_driver_node',
-            condition=launch_cam_condition,
+            condition=LaunchConfigurationEquals('hardware_type', 'real'),
+            parameters=[use_sim_time_param],
             output='screen',
         ),
-
-        # Lane detection 
-        Node(
-            package='lane_perception',
-            executable='lane_perception_node',
-            name='lane_perception_node',
-            condition=LaunchConfigurationEquals('enable_ai', 'false'),
-            parameters=[{'use_sim': PythonExpression(["'", hardware_type, "' == 'simulated'"])}, use_sim_time_param],
-            output='screen'
-        ),
         
-        # AI Perception
+        # Lane detection to PointCloud
         Node(
             package='vehicle_perception',
-            executable='ufld_node',
-            name='ufld_node',
-            condition=LaunchConfigurationEquals('enable_ai', 'true'),
+            executable='spatial_lane_node',
+            name='spatial_lane_node',
             parameters=[use_sim_time_param],
             output='screen'
         ),
-        
         
         # Steering Bridge
         Node(

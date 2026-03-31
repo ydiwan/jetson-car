@@ -14,12 +14,12 @@
   <link name="chassis">
     <visual>
       <origin xyz="0.074 0 0.034" rpy="0 0 0"/>
-      <geometry><box size="0.20 0.10 0.05"/></geometry>
+      <geometry><box size="0.2413 0.10 0.05"/></geometry>
       <material name="blue"/>
     </visual>
     <collision>
       <origin xyz="0.074 0 0.034" rpy="0 0 0"/>
-      <geometry><box size="0.20 0.10 0.05"/></geometry>
+      <geometry><box size="0.2413 0.10 0.05"/></geometry>
     </collision>
     <inertial>
       <origin xyz="0.074 0 0.034" rpy="0 0 0"/>
@@ -64,7 +64,7 @@
     <child link="fl_steering_hinge"/>
     <origin xyz="0.148 0.0665 0.034" rpy="0 0 0"/>
     <axis xyz="0 0 1"/> 
-    <limit lower="-0.52" upper="0.52" effort="10.0" velocity="5.0"/> 
+    <limit lower="-0.785" upper="0.785" effort="10.0" velocity="5.0"/> 
   </joint>
 
   <link name="front_left_wheel">
@@ -87,7 +87,7 @@
     <child link="fr_steering_hinge"/>
     <origin xyz="0.148 -0.0665 0.034" rpy="0 0 0"/>
     <axis xyz="0 0 1"/> 
-    <limit lower="-0.52" upper="0.52" effort="10.0" velocity="5.0"/> 
+    <limit lower="-0.785" upper="0.785" effort="10.0" velocity="5.0"/> 
   </joint>
 
   <link name="front_right_wheel">
@@ -113,16 +113,16 @@
   <joint name="camera_joint" type="fixed">
     <parent link="base_link"/>
     <child link="camera_link"/>
-    <origin xyz="0.174 0 0.04" rpy="0 0 0"/>
+    <origin xyz="0.174 0 0.0587" rpy="0 0 0"/>
   </joint>
 
-  <gazebo reference="chassis">
+  <gazebo reference="camera_link">
     <sensor name="lane_camera" type="camera">
-      <pose>0.25 0 0.1 0 0.2 0</pose> 
+      <pose>0 0 0 0 0 0</pose> 
       <always_on>1</always_on>
       <update_rate>60</update_rate>
       <camera>
-        <horizontal_fov>1.5</horizontal_fov>
+        <horizontal_fov>1.1</horizontal_fov>
         <image><width>1280</width><height>720</height></image>
         <clip><near>0.1</near><far>100</far></clip>
       </camera>
@@ -141,6 +141,16 @@
       <wheel_radius>0.034</wheel_radius>
       <odom_publish_frequency>50</odom_publish_frequency>
       <topic>cmd_vel</topic>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin filename="libignition-gazebo-odometry-publisher-system.so" name="ignition::gazebo::systems::OdometryPublisher">
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+      <odom_topic>/model/jetson_car/odometry</odom_topic>
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <dimensions>3</dimensions>
     </plugin>
   </gazebo>
 </robot>

@@ -28,10 +28,16 @@ class LdConfig:
         # node.declare_parameter("btm_right_src", [627.0, 0.0])
         
         # Simulation tuned
-        # node.declare_parameter("top_left_src", [129.0, 13.0])
-        # node.declare_parameter("top_right_src", [558.0, 13.0])
-        # node.declare_parameter("btm_left_src", [3.0, 111.0])
-        # node.declare_parameter("btm_right_src", [674.0, 104.0])
+        # node.declare_parameter("top_left_src", [207.0, 78.0])
+        # node.declare_parameter("top_right_src", [541.0, 78.0])
+        # node.declare_parameter("btm_left_src", [0.0, 146.0])
+        # node.declare_parameter("btm_right_src", [677.0, 146.0])
+        
+        # bev test
+        # node.declare_parameter("top_left_src", [238.0, 60.0])
+        # node.declare_parameter("top_right_src", [444.0, 60.0])
+        # node.declare_parameter("btm_left_src", [9.0, 191.0])
+        # node.declare_parameter("btm_right_src", [680.0, 191.0])
         
         node.declare_parameter("top_left_src", [220.0, 60.0])
         node.declare_parameter("top_right_src", [458.0, 60.0])
@@ -93,4 +99,12 @@ class LdConfig:
                 self.steps = param.value
             elif param.name == "pos_conf_threshold":
                 self.pos_conf_threshold = param.value
+            elif param.name == "top_left_src":
+                self.top_left_src = param.value
+            elif param.name == "top_right_src":
+                self.top_right_src = param.value
+            elif param.name == "btm_left_src":
+                self.btm_left_src = param.value
+            elif param.name == "btm_right_src":
+                self.btm_right_src = param.value
         return SetParametersResult(successful=True)

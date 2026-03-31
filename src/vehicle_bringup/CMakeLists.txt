@@ -13,6 +13,7 @@ install(DIRECTORY
   urdf
   worlds
   config
+  rviz
   DESTINATION share/${PROJECT_NAME}
 )
 

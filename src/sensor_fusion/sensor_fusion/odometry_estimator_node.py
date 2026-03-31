@@ -21,8 +21,7 @@ class OdometryEstimatorNode(Node):
         self.last_time = self.get_clock().now()
 
         #  Subscriptions 
-        self.cmd_sub = self.create_subscription(
-            Twist, '/cmd_vel', self.cmd_callback, 10)
+        self.cmd_sub = self.create_subscription(Twist, '/cmd_vel', self.cmd_callback, 10)
 
         # Publishers 
         self.odom_pub = self.create_publisher(Odometry, '/vehicle/odom', 10)
@@ -75,6 +74,10 @@ class OdometryEstimatorNode(Node):
         # Set Velocity
         odom_msg.twist.twist.linear.x = self.v_x
         odom_msg.twist.twist.angular.z = self.omega_z
+        
+        # Add a baseline uncertainty to the velocities (Twist)
+        odom_msg.twist.covariance[0] = 0.1  
+        odom_msg.twist.covariance[35] = 0.1
 
         self.odom_pub.publish(odom_msg)
 

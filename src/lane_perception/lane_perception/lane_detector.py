@@ -1,4 +1,5 @@
 import rclpy
+import cv2
 from dataclasses import dataclass
 import numpy as np
 from .ld_config import LdConfig
@@ -13,6 +14,7 @@ class LdResults:
     ld_img: np.ndarray = None
     bin_mask: np.ndarray = None
     filter_mask: np.ndarray = None
+    scanner_mask: np.ndarray = None
     bev: np.ndarray = None
     delta: int = 0
     position_conf: float = 0.0
@@ -51,6 +53,9 @@ class LaneDetector:
         # Save masks to results
         self.results.bin_mask = self.preprocessor.bin_mask
         self.results.filter_mask = self.preprocessor.filter_bin_mask
+        
+        # Initialize a completely blank black mask for the scanner output
+        self.results.scanner_mask = np.zeros_like(self.results.filter_mask)
 
         # Scan for road lane lines
         lanes_found = self.scanner.run(self.results.filter_mask)
@@ -59,6 +64,15 @@ class LaneDetector:
             left_lane = self.scanner.get_left_lane()
             right_lane = self.scanner.get_right_lane()
             center_lane = self.scanner.get_center_lane()
+
+            # Draw only verified liens
+            if left_lane is not None and len(left_lane) > 0:
+                l_pts = np.array(left_lane, np.int32).reshape((-1, 1, 2))
+                cv2.polylines(self.results.scanner_mask, [l_pts], isClosed=False, color=255, thickness=10)
+
+            if right_lane is not None and len(right_lane) > 0:
+                r_pts = np.array(right_lane, np.int32).reshape((-1, 1, 2))
+                cv2.polylines(self.results.scanner_mask, [r_pts], isClosed=False, color=255, thickness=10)
 
             # Postprocess (Draw visuals, calculate delta, BEV transform)
             self.results.delta = self.postprocessor.run(

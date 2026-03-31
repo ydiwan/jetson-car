@@ -28,6 +28,7 @@ setup(
     entry_points={
         'console_scripts': [
             'odometry_estimator_node = sensor_fusion.odometry_estimator_node:main',
+            'vicon_converter_node = sensor_fusion.vicon_converter_node:main',
         ],
     },
 )

@@ -26,6 +26,8 @@ setup(
         'console_scripts': [
             'camera_driver_node = vehicle_perception.camera_driver_node:main',
             'ufld_node = vehicle_perception.ufld_node:main',
+            'yolop_node = vehicle_perception.yolop_node:main',
+            'spatial_lane_node = vehicle_perception.spatial_lane_node:main'
         ],
     },
 )
