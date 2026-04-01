@@ -14,7 +14,7 @@ class YolopPerceptionNode(Node):
         self.bridge = CvBridge()
         self.get_logger().info('Initializing YOLOP via PyTorch Hub (This may take a moment to download weights)...')
 
-        # This automatically pulls the repo and pretrained weights into ~/.cache/torch/hub/
+        # Automatically pulls the repo and pretrained weights into ~/.cache/torch/hub/
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = torch.hub.load('hustvl/yolop', 'yolop', pretrained=True, trust_repo=True)
         self.model.to(self.device)
@@ -71,12 +71,11 @@ class YolopPerceptionNode(Node):
             binary_mask = da_mask_resized * 255
             self.pub_img(self.da_pub, binary_mask, 'mono8')
 
-            # Create a Green Overlay on the original image for easy viewing
+            # Green overlay
             overlay = cv_image.copy()
-            # Where the mask is 1, turn the pixels green
             overlay[da_mask_resized == 1] = (0, 255, 0)
             
-            # Blend the overlay with the original image (50% transparency)
+            # Blend the overlay with the original image
             blended = cv2.addWeighted(cv_image, 0.5, overlay, 0.5, 0)
             self.pub_img(self.overlay_pub, blended, 'bgr8')
 

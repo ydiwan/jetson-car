@@ -14,7 +14,7 @@ class SimGroundTruthNode(Node):
         
         self.received_odom = False
         
-        # 50Hz Kickstart to keep Nav2 happy while Gazebo boots
+        # 50Hz Kickstart
         self.timer = self.create_timer(0.02, self.kickstart_cb)
         self.get_logger().info("Sim Ground Truth Vicon-Emulator Active. Waiting for Gazebo...")
 

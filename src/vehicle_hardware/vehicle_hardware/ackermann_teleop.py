@@ -36,7 +36,7 @@ class AckermannTeleop(Node):
         self.speed_step = 0.1
         self.steer_step = 0.05
         self.max_steer = 0.52
-        self.L = 0.148  # Wheelbase to match your kinematics node
+        self.L = 0.148 
 
         print(msg)
 
