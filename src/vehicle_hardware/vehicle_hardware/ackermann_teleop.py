@@ -9,15 +9,15 @@ settings = termios.tcgetattr(sys.stdin)
 msg = """
 Ackermann Custom Teleop
 ---------------------------
-Speed Control:
-  w : increase forward speed
+Motion Control:
+  w : forward speed = speed step
+  a : increment steering LEFT
+  d : increment steering RIGHT
   s : force stop (and center steering)
-  x : increase reverse speed
 
-Steering Control:
-  u : increment steering LEFT
-  i : center steering (STRAIGHT)
-  o : increment steering RIGHT
+Multipliers:
+  q / z : increase/decrease linear speed step
+  e / c : increase/decrease steering step
 
 CTRL-C to quit
 """
@@ -54,28 +54,33 @@ class AckermannTeleop(Node):
         key = self.getKey()
         if key:
             if key == 'w':
-                self.v_x += self.speed_step
-            elif key == 'x':
-                self.v_x -= self.speed_step
+                self.v_x = self.speed_step
+                self.steering_angle = 0.0
             elif key == 's':
                 self.v_x = 0.0
                 self.steering_angle = 0.0
-            elif key == 'u':
+            elif key == 'a':
                 self.steering_angle += self.steer_step
                 if self.steering_angle > self.max_steer:
                     self.steering_angle = self.max_steer
-            elif key == 'o':
+            elif key == 'd':
                 self.steering_angle -= self.steer_step
                 if self.steering_angle < -self.max_steer:
                     self.steering_angle = -self.max_steer
-            elif key == 'i':
-                self.steering_angle = 0.0
+            elif key == 'q':
+                self.speed_step *= 1.1  
+            elif key == 'z':
+                self.speed_step *= 0.9  
+            elif key == 'e':
+                self.steer_step *= 1.1  
+            elif key == 'c':
+                self.steer_step *= 0.9  
             elif key == '\x03': # CTRL-C
                 rclpy.shutdown()
                 return
             
-            # Print current state to terminal
-            print(f"Speed: {self.v_x:.2f} | Steering Angle: {self.steering_angle:.2f}", end='\r')
+            # Print current state and multipliers to terminal
+            print(f"Speed: {self.v_x:.2f} (Step: {self.speed_step:.2f}) | Steer: {self.steering_angle:.2f} (Step: {self.steer_step:.3f})", end='\r')
 
         twist_msg = Twist()
         twist_msg.linear.x = self.v_x
