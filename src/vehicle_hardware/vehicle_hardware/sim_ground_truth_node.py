@@ -3,12 +3,13 @@ from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
+from rclpy.qos import qos_profile_sensor_data
 
 class SimGroundTruthNode(Node):
     def __init__(self):
         super().__init__('sim_ground_truth_node')
         
-        self.sub = self.create_subscription(Odometry, '/model/jetson_car/odometry', self.odom_cb, 10)
+        self.sub = self.create_subscription(Odometry, '/model/jetson_car/odometry', self.odom_cb, qos_profile_sensor_data)
         self.odom_pub = self.create_publisher(Odometry, '/odom', 10)
         self.tf_broadcaster = TransformBroadcaster(self)
         

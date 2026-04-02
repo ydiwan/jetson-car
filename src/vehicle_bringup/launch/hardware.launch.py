@@ -180,9 +180,6 @@ def generate_launch_description():
                 '/camera/lane/raw_video@sensor_msgs/msg/Image[gz.msgs.Image',
                 '/model/jetson_car/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry',
             ],
-            remappings=[
-                ('/model/jetson_car/odometry', '/odom')
-            ],
             condition=LaunchConfigurationEquals('hardware_type', 'simulated'),
             output='screen'
         ),
