@@ -1,0 +1,12 @@
+# cyber_city_with_brim.yaml
+image: cyber_city_with_brim.png # 6m x 6.5m (wxh)
+resolution: 0.005454545454 # width / png pixel width
+# Assumes world is initalized with origin at (0,0)
+origin: [-3, -3.25, 0.0] # [-width/2, -height/2]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.25
+mode: trinary
+
+# command to fix image if alpha is enabled
+# convert {original picture name} -background white -alpha remove -alpha off -type Grayscale -depth 8 {result picture name}

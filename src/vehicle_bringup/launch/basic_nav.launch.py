@@ -15,7 +15,8 @@ def generate_launch_description():
     show_sim = LaunchConfiguration('show_sim', default='false')
     enable_nav2 = LaunchConfiguration('enable_nav2', default='true')
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
-
+    map_file = LaunchConfiguration('map_file', default='cyber_city_with_brim.yaml')
+    
     # Package Directories
     bringup_dir = get_package_share_directory('vehicle_bringup')
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
@@ -51,6 +52,11 @@ def generate_launch_description():
             'use_sim_time',
             default_value='false',
             description='Use gazebo clock'    
+        ),
+        DeclareLaunchArgument(
+            'map_file',
+            default_value='cyber_city_with_brim.yaml',
+            description='Which track map to load'
         ),
         
         # Base Hardware
@@ -95,7 +101,14 @@ def generate_launch_description():
             package='nav2_map_server',
             executable='map_server',
             name='map_server',
-            parameters=[{'yaml_filename': os.path.join(bringup_dir, 'worlds/materials/textures', 'cyber_city_map.yaml')}],
+            parameters=[
+                {'yaml_filename': PathJoinSubstitution([
+                    bringup_dir, 
+                    'worlds/materials/textures', 
+                    LaunchConfiguration('map_file')
+                ])},
+                use_sim_time_param
+            ],
             output='screen'
         ),
 
