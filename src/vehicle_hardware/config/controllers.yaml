@@ -1,0 +1,43 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 50  # 50 Hz control loop is standard for a 1/10th scale car
+
+    # 1. The Controller that replaces your ackermann_kinematics_node and odometry_estimator_node
+    ackermann_steering_controller:
+      type: ackermann_steering_controller/AckermannSteeringController
+
+    # 2. The standard broadcaster that publishes /joint_states for your URDF wheels
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+# Configuration for the Ackermann Controller
+ackermann_steering_controller:
+  ros__parameters:
+    # Look at your URDF: These must match EXACTLY
+    rear_wheels_names: ['rl_wheel_joint', 'rr_wheel_joint']
+    front_steer_names: ['fl_steering_joint', 'fr_steering_joint']
+
+    # Kinematic parameters from your URDF
+    wheelbase: 0.148
+    front_wheel_track: 0.133
+    rear_wheel_track: 0.133
+    front_wheels_radius: 0.034
+    rear_wheels_radius: 0.034
+
+    # Odometry Publishing settings (Replaces odometry_estimator_node.py)
+    publish_rate: 50.0
+    odom_frame_id: odom
+    base_frame_id: base_link
+    enable_odom_tf: true # This controller will publish the odom -> base_link TF tree for you
+    
+    # Input twist scaling and limits
+    linear:
+      x:
+        has_velocity_limits: true
+        max_velocity: 1.5   # m/s
+        has_acceleration_limits: true
+        max_acceleration: 2.0 # m/s^2
+    angular:
+      z:
+        has_position_limits: true
+        max_position: 0.785 # 45 degrees in rad (matches your URDF limit)

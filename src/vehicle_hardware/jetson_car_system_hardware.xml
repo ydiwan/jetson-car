@@ -1,0 +1,9 @@
+<library path="vehicle_hardware">
+  <class name="vehicle_hardware/JetsonCarSystemHardware"
+         type="vehicle_hardware::JetsonCarSystemHardware"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Custom hardware interface for the Jetson-Car Open-Loop rear motors and Pololu steering.
+    </description>
+  </class>
+</library>

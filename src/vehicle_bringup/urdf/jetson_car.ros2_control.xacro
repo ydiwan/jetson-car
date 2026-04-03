@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="jetson_car_ros2_control" params="use_sim">
+    <ros2_control name="JetsonCarSystem" type="system">
+      <hardware>
+        <xacro:if value="${use_sim}">
+          <plugin>ign_ros2_control/IgnitionSystem</plugin>
+        </xacro:if>
+
+        <xacro:unless value="${use_sim}">
+          <plugin>vehicle_hardware/JetsonCarSystemHardware</plugin>
+          <param name="steering_serial_port">/dev/ttyACM0</param>
+          <param name="pwm_left_pin">15</param>
+          <param name="pwm_right_pin">32</param>
+        </xacro:unless>
+      </hardware>
+
+      <joint name="rl_wheel_joint">
+        <command_interface name="velocity"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="rr_wheel_joint">
+        <command_interface name="velocity"/>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="fl_steering_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+      </joint>
+
+      <joint name="fr_steering_joint">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+      </joint>
+    </ros2_control>
+  </xacro:macro>
+
+</robot>
