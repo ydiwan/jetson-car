@@ -2,8 +2,13 @@
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-// Placeholder for Jetson GPIO library includes
-// #include <JetsonGPIO.h> 
+// Linux hardware i/o
+#include <fcntl.h>
+#include <termios.h>
+#include <unistd.h>
+#include <fstream>
+#include <cmath>
+#include <algorithm> 
 
 namespace vehicle_hardware
 {
@@ -74,14 +79,9 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_activate(
 {
   RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Activating hardware...");
 
-  // TODO: Open Serial Port to Maestro
-  // maestro_fd_ = open_maestro_serial(steering_serial_port_);
+  maestro_fd_ = open_maestro_serial(steering_serial_port_);
 
-  // TODO: Export Jetson GPIO Pins
-  // export_gpio_pwm(pwm_left_pin_);
-  // export_gpio_pwm(pwm_right_pin_);
-
-  // Initialize commands to 0 to prevent jump on startup
+  // Initialize commands to 0
   hw_rl_wheel_cmd_vel_ = 0.0;
   hw_rr_wheel_cmd_vel_ = 0.0;
   hw_fl_steering_cmd_pos_ = 0.0;
@@ -95,21 +95,22 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_deactivate(
 {
   RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Deactivating hardware. STOPPING CAR.");
 
-  // CRITICAL SAFETY: Hardware PRD states 100% duty cycle stops the active-low motors
-  // set_motor_pwm(pwm_left_pin_, 100.0);
-  // set_motor_pwm(pwm_right_pin_, 100.0);
+  set_motor_pwm(pwm_left_pin_, 0.0);
+  set_motor_pwm(pwm_right_pin_, 0.0);
   
   // Center the steering
-  // set_maestro_target(0, 0.0);
+  set_maestro_target(0, 0.0);
 
+  if (maestro_fd_ != -1) {
+  ::close(maestro_fd_);
+  maestro_fd_ = -1;
+  }
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 hardware_interface::return_type JetsonCarSystemHardware::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
-  // OPEN-LOOP HACK: Since we have no encoders, we assume the motors 
-  // perfectly achieved the velocity we commanded in the last cycle.
   hw_rl_wheel_vel_ = hw_rl_wheel_cmd_vel_;
   hw_rr_wheel_vel_ = hw_rr_wheel_cmd_vel_;
 
@@ -127,20 +128,88 @@ hardware_interface::return_type JetsonCarSystemHardware::read(
 hardware_interface::return_type JetsonCarSystemHardware::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
-  // 1. Translate commanded Rad/s to Active-Low PWM (0-1000 scale)
-  // PRD Note: 0% duty cycle = max speed, 100% = stop
-  // double left_pwm = math_conversion(hw_rl_wheel_cmd_vel_);
-  // double right_pwm = math_conversion(hw_rr_wheel_cmd_vel_);
-  
-  // set_motor_pwm(pwm_left_pin_, left_pwm);
-  // set_motor_pwm(pwm_right_pin_, right_pwm);
-
-  // 2. Translate commanded Radians to Pololu Maestro Target
-  // set_maestro_target(0, hw_fl_steering_cmd_pos_);
+  // Push actual commands to hardware
+    set_motor_pwm(pwm_left_pin_, hw_rl_wheel_cmd_vel_);
+    set_motor_pwm(pwm_right_pin_, hw_rr_wheel_cmd_vel_);
+    set_maestro_target(0, hw_fl_steering_cmd_pos_);
 
   return hardware_interface::return_type::OK;
 }
 
+bool JetsonCarSystemHardware::open_maestro_serial(const std::string & port)
+{
+  // Open the serial port for Read/Write, no controlling terminal
+  maestro_fd_ = open(port.c_str(), O_RDWR | O_NOCTTY);
+  if (maestro_fd_ == -1) {
+    RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "Failed to open Maestro on %s", port.c_str());
+    return false;
+  }
+
+  // Configure standard Linux Serial settings (termios) for Pololu
+  struct termios options;
+  tcgetattr(maestro_fd_, &options);
+  options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // Raw input
+  options.c_oflag &= ~OPOST;                          // Raw output
+  tcsetattr(maestro_fd_, TCSANOW, &options);
+
+  return true;
+}
+
+void JetsonCarSystemHardware::set_maestro_target(int channel, double angle_rad)
+{
+  if (maestro_fd_ == -1) return;
+
+  // Translate Radians to PWM
+  // 0 rad = Center = 1500 us
+  // +/- 0.785 rad = +/- 500 us (1000 us to 2000 us range)
+  double pulse_us = 1500.0 - ((angle_rad / 0.785) * 500.0);
+
+  // Clamp values to protect the steering linkages
+  pulse_us = std::clamp(pulse_us, 1000.0, 2000.0);
+
+  // The Maestro protocol expects the target in quarter-microseconds
+  int target = static_cast<int>(pulse_us * 4.0);
+
+  // Construct the Pololu "Set Target" serial payload (0x84)
+  unsigned char command[] = {
+    0x84, 
+    static_cast<unsigned char>(channel), 
+    static_cast<unsigned char>(target & 0x7F), 
+    static_cast<unsigned char>((target >> 7) & 0x7F)
+  };
+
+  // Write directly to the USB serial bus
+  ::write(maestro_fd_, command, sizeof(command));
+}
+
+void JetsonCarSystemHardware::set_motor_pwm(int pin, double velocity_rad_s)
+{
+  // Rad/s to Duty Cycle %
+  double max_rad_s = 25.0; // Arbitrary scaler for max RPM
+  double speed_percent = std::abs(velocity_rad_s) / max_rad_s;
+  speed_percent = std::clamp(speed_percent, 0.0, 1.0);
+
+  // Active-Low Hardware Logic
+  double active_low_duty = 1.0 - speed_percent;
+
+  // Write to Jetson Sysfs
+  // Standard path: /sys/class/pwm/pwmchip0/pwm0/duty_cycle
+  int period_ns = 1000000;
+  int duty_ns = static_cast<int>(active_low_duty * period_ns);
+
+  // Determine the correct sysfs path based on the pin.
+  std::string pwm_path = "";
+  if (pin == 15) pwm_path = "/sys/class/pwm/pwmchip0/pwm0/duty_cycle"; 
+  if (pin == 32) pwm_path = "/sys/class/pwm/pwmchip0/pwm2/duty_cycle";
+
+  if (!pwm_path.empty()) {
+    std::ofstream duty_file(pwm_path);
+    if (duty_file.is_open()) {
+      duty_file << duty_ns;
+      duty_file.close();
+    }
+  }
+}
 }  // namespace vehicle_hardware
 
 #include "pluginlib/class_list_macros.hpp"
