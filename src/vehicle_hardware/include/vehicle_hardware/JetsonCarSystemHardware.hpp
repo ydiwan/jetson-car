@@ -61,16 +61,16 @@ private:
   double hw_fl_steering_pos_ = 0.0;
   double hw_fr_steering_pos_ = 0.0;
 
-  // --- Internal Commands (What the controller wants) ---
+  // Internal Command
   double hw_rl_wheel_cmd_vel_ = 0.0;
   double hw_rr_wheel_cmd_vel_ = 0.0;
   double hw_fl_steering_cmd_pos_ = 0.0;
   double hw_fr_steering_cmd_pos_ = 0.0;
 
-  // --- Hardware Communication Handles ---
+  // Hardware Communication Handles 
   int maestro_fd_ = -1; // File descriptor for USB serial
 
-  // --- Private IO Helpers ---
+  // Private IO Helpers 
   bool open_maestro_serial(const std::string & port);
   void set_maestro_target(int channel, double angle_rad);
   

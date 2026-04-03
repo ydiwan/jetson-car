@@ -17,7 +17,7 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_init(
     return hardware_interface::CallbackReturn::ERROR;
   }
 
-  // Load parameters defined in our <ros2_control> URDF block
+  // Load parameters
   steering_serial_port_ = info_.hardware_parameters["steering_serial_port"];
   pwm_left_pin_ = std::stoi(info_.hardware_parameters["pwm_left_pin"]);
   pwm_right_pin_ = std::stoi(info_.hardware_parameters["pwm_right_pin"]);
@@ -30,7 +30,7 @@ std::vector<hardware_interface::StateInterface> JetsonCarSystemHardware::export_
 {
   std::vector<hardware_interface::StateInterface> state_interfaces;
 
-  // Rear Wheels (Position & Velocity)
+  // Rear Wheels
   state_interfaces.emplace_back(hardware_interface::StateInterface(
     "rl_wheel_joint", hardware_interface::HW_IF_POSITION, &hw_rl_wheel_pos_));
   state_interfaces.emplace_back(hardware_interface::StateInterface(
@@ -41,7 +41,7 @@ std::vector<hardware_interface::StateInterface> JetsonCarSystemHardware::export_
   state_interfaces.emplace_back(hardware_interface::StateInterface(
     "rr_wheel_joint", hardware_interface::HW_IF_VELOCITY, &hw_rr_wheel_vel_));
 
-  // Front Steering (Position only)
+  // Front Steering
   state_interfaces.emplace_back(hardware_interface::StateInterface(
     "fl_steering_joint", hardware_interface::HW_IF_POSITION, &hw_fl_steering_pos_));
   state_interfaces.emplace_back(hardware_interface::StateInterface(
@@ -54,13 +54,13 @@ std::vector<hardware_interface::CommandInterface> JetsonCarSystemHardware::expor
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  // Rear Wheels expect Velocity commands
+  // Rear Wheels expect Velocity 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
     "rl_wheel_joint", hardware_interface::HW_IF_VELOCITY, &hw_rl_wheel_cmd_vel_));
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
     "rr_wheel_joint", hardware_interface::HW_IF_VELOCITY, &hw_rr_wheel_cmd_vel_));
 
-  // Front Steering expects Position commands (radians)
+  // Front Steering expects Position 
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
     "fl_steering_joint", hardware_interface::HW_IF_POSITION, &hw_fl_steering_cmd_pos_));
   command_interfaces.emplace_back(hardware_interface::CommandInterface(
