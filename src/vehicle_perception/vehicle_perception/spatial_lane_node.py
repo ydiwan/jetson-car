@@ -18,11 +18,16 @@ class SpatialLaneNode(Node):
         self.fx = 1043.8
         self.fy = 1043.8
         
+        # Parameters
+        self.declare_parameter("min_area", 100)
+        self.declare_parameter("max_area", 8000)
+        
         # Subscribers and Publishers
         self.sub = self.create_subscription(Image, '/camera/lane/raw_video', self.image_callback, 1)
         
         self.pc_pub = self.create_publisher(PointCloud2, '/perception/lane_pointcloud', 1)
         self.debug_pub = self.create_publisher(Image, '/perception/spatial_debug', 1)
+        self.filter_pub = self.create_publisher(Image, '/perception/spatial_filter', 1)
         
         self.get_logger().info("Spatial Lane Perception Node Initialized. Ready for Nav2.")
 
@@ -64,9 +69,33 @@ class SpatialLaneNode(Node):
             debug_msg.header = msg.header
             self.debug_pub.publish(debug_msg)
 
-        # Downsample
-        sampled_mask = np.zeros_like(bin_mask)
-        sampled_mask[::10, ::10] = bin_mask[::10, ::10]
+        # Update params for contour area filtering
+        min_area = self.get_parameter("min_area").value
+        max_area = self.get_parameter("max_area").value
+
+        # Filter the binary mask by contour area
+        contours, _ = cv2.findContours(
+            bin_mask, 
+            cv2.RETR_EXTERNAL, 
+            cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        filter_bin_mask = np.zeros_like(bin_mask)
+
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if min_area <= area <= max_area:
+                cv2.drawContours(filter_bin_mask, [contour], 0, 255, cv2.FILLED)
+
+        # Publish the filtered mask
+        if self.filter_pub.get_subscription_count() > 0:
+            filter_msg = self.bridge.cv2_to_imgmsg(filter_bin_mask, "mono8")
+            filter_msg.header = msg.header
+            self.filter_pub.publish(filter_msg)
+
+        # Downsample using the filtered mask
+        sampled_mask = np.zeros_like(filter_bin_mask)
+        sampled_mask[::10, ::10] = filter_bin_mask[::10, ::10]
         
         v_coords, u_coords = np.nonzero(sampled_mask)
         

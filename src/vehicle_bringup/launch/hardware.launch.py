@@ -178,7 +178,7 @@ def generate_launch_description():
                 '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
                 '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist',
                 '/camera/lane/raw_video@sensor_msgs/msg/Image[gz.msgs.Image',
-                '/model/jetson_car/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry',
+                '/model/jetson_car/ground_truth@nav_msgs/msg/Odometry[gz.msgs.Odometry',
             ],
             condition=LaunchConfigurationEquals('hardware_type', 'simulated'),
             output='screen'
