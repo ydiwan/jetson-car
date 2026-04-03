@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
@@ -11,6 +12,7 @@
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
+#include <JetsonGPIO.h>
 
 namespace vehicle_hardware
 {
@@ -73,9 +75,10 @@ private:
   // Private IO Helpers 
   bool open_maestro_serial(const std::string & port);
   void set_maestro_target(int channel, double angle_rad);
-  
-  bool export_gpio_pwm(int pin);
-  void set_motor_pwm(int pin, double velocity_rad_s);
+
+  // JetsonGPIO PWM objects
+  std::unique_ptr<GPIO::PWM> pwm_left_obj_;
+  std::unique_ptr<GPIO::PWM> pwm_right_obj_;
 };
 }  // namespace vehicle_hardware
 

@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(JetsonGPIO REQUIRED)
 
 # Compile our hardware plugin into a shared library
 add_library(${PROJECT_NAME} SHARED
@@ -29,6 +30,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   hardware_interface::hardware_interface
   pluginlib::pluginlib
   rclcpp_lifecycle::rclcpp_lifecycle
+  JetsonGPIO::JetsonGPIO
 )
 
 # Export the plugin XML so the Controller Manager can find it

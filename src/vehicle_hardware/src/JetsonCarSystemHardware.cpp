@@ -1,6 +1,7 @@
 #include "vehicle_hardware/JetsonCarSystemHardware.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include <JetsonGPIO.h>
 
 // Linux hardware i/o
 #include <fcntl.h>
@@ -77,11 +78,30 @@ std::vector<hardware_interface::CommandInterface> JetsonCarSystemHardware::expor
 hardware_interface::CallbackReturn JetsonCarSystemHardware::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Activating hardware...");
+  RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Activating hardware with JetsonGPIO...");
 
+  // Open Maestro Serial
   maestro_fd_ = open_maestro_serial(steering_serial_port_);
 
-  // Initialize commands to 0
+  // JetsionGPIO init
+  GPIO::setmode(GPIO::BOARD);
+  GPIO::setwarnings(false);
+
+  int dir_r = 31;
+  int dir_l = 7;
+  
+  // Setup Direction Pins
+  GPIO::setup(dir_r, GPIO::OUT, GPIO::HIGH);
+  GPIO::setup(dir_l, GPIO::OUT, GPIO::HIGH);
+
+  // Setup PWM Pins (1 kHz frequency)
+  pwm_right_obj_ = std::make_unique<GPIO::PWM>(pwm_right_pin_, 1000);
+  pwm_left_obj_ = std::make_unique<GPIO::PWM>(pwm_left_pin_, 1000);
+
+  // Start with 0% duty cycle (STOP)
+  pwm_right_obj_->start(0.0);
+  pwm_left_obj_->start(0.0);
+
   hw_rl_wheel_cmd_vel_ = 0.0;
   hw_rr_wheel_cmd_vel_ = 0.0;
   hw_fl_steering_cmd_pos_ = 0.0;
@@ -94,17 +114,19 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Deactivating hardware. STOPPING CAR.");
-
-  set_motor_pwm(pwm_left_pin_, 0.0);
-  set_motor_pwm(pwm_right_pin_, 0.0);
   
+  // Stop PWM and cleanup pins safely
+  if (pwm_left_obj_) pwm_left_obj_->stop();
+  if (pwm_right_obj_) pwm_right_obj_->stop();
+  GPIO::cleanup(); 
+
   // Center the steering
   set_maestro_target(0, 0.0);
-
   if (maestro_fd_ != -1) {
-  ::close(maestro_fd_);
-  maestro_fd_ = -1;
+    ::close(maestro_fd_);
+    maestro_fd_ = -1;
   }
+
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -128,10 +150,31 @@ hardware_interface::return_type JetsonCarSystemHardware::read(
 hardware_interface::return_type JetsonCarSystemHardware::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
-  // Push actual commands to hardware
-    set_motor_pwm(pwm_left_pin_, hw_rl_wheel_cmd_vel_);
-    set_motor_pwm(pwm_right_pin_, hw_rr_wheel_cmd_vel_);
-    set_maestro_target(0, hw_fl_steering_cmd_pos_);
+  // Rad/s to Duty Cycle %
+  double max_rad_s = 25.0; // Tune this to match top speed
+
+  // Left wheel
+  double speed_l = hw_rl_wheel_cmd_vel_ / max_rad_s;
+  if (speed_l < 0) {
+      GPIO::output(7, GPIO::LOW); // Reverse
+  } else {
+      GPIO::output(7, GPIO::HIGH); // Forward
+  }
+  double duty_l = std::clamp(std::abs(speed_l) * 100.0, 0.0, 100.0);
+  if (pwm_left_obj_) pwm_left_obj_->ChangeDutyCycle(duty_l);
+
+  // Right wheel
+  double speed_r = hw_rr_wheel_cmd_vel_ / max_rad_s;
+  if (speed_r < 0) {
+      GPIO::output(31, GPIO::LOW); // Reverse
+  } else {
+      GPIO::output(31, GPIO::HIGH); // Forward
+  }
+  double duty_r = std::clamp(std::abs(speed_r) * 100.0, 0.0, 100.0);
+  if (pwm_right_obj_) pwm_right_obj_->ChangeDutyCycle(duty_r);
+
+  // Steering
+  set_maestro_target(0, hw_fl_steering_cmd_pos_);
 
   return hardware_interface::return_type::OK;
 }
@@ -181,36 +224,7 @@ void JetsonCarSystemHardware::set_maestro_target(int channel, double angle_rad)
   // Write directly to the USB serial bus
   ::write(maestro_fd_, command, sizeof(command));
 }
-
-void JetsonCarSystemHardware::set_motor_pwm(int pin, double velocity_rad_s)
-{
-  // Rad/s to Duty Cycle %
-  double max_rad_s = 25.0; // Arbitrary scaler for max RPM
-  double speed_percent = std::abs(velocity_rad_s) / max_rad_s;
-  speed_percent = std::clamp(speed_percent, 0.0, 1.0);
-
-  // Active-Low Hardware Logic
-  double active_low_duty = 1.0 - speed_percent;
-
-  // Write to Jetson Sysfs
-  // Standard path: /sys/class/pwm/pwmchip0/pwm0/duty_cycle
-  int period_ns = 1000000;
-  int duty_ns = static_cast<int>(active_low_duty * period_ns);
-
-  // Determine the correct sysfs path based on the pin.
-  std::string pwm_path = "";
-  if (pin == 15) pwm_path = "/sys/class/pwm/pwmchip0/pwm0/duty_cycle"; 
-  if (pin == 32) pwm_path = "/sys/class/pwm/pwmchip0/pwm2/duty_cycle";
-
-  if (!pwm_path.empty()) {
-    std::ofstream duty_file(pwm_path);
-    if (duty_file.is_open()) {
-      duty_file << duty_ns;
-      duty_file.close();
-    }
-  }
-}
-}  // namespace vehicle_hardware
+} // namespace vehicle_hardware
 
 #include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(
