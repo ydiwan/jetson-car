@@ -14,6 +14,7 @@
 #include "rclcpp_lifecycle/state.hpp"
 #include "rclcpp/time.hpp"
 #include "rclcpp/duration.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include <std_msgs/msg/int32.hpp>
 
 namespace vehicle_hardware
