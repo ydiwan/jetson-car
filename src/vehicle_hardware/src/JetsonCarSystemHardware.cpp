@@ -15,6 +15,7 @@ namespace vehicle_hardware
 {
 
 class SysfsPWM {
+    int duty_fd_ = -1;
     std::string pwm_path_;
     int chip_idx_ = -1;
 
@@ -42,36 +43,34 @@ public:
         if (chip_idx_ != -1) {
             pwm_path_ = "/sys/class/pwm/pwmchip" + std::to_string(chip_idx_) + "/pwm0";
             
-            // Export PWM channel
             std::ofstream exp("/sys/class/pwm/pwmchip" + std::to_string(chip_idx_) + "/export");
             if (exp.is_open()) { exp << 0 << std::endl; exp.close(); }
             
-            // Wait for Linux to create folder
-            usleep(200000); 
-
-            // Force 777 permissions, allows direct communication with pwm folders
+            usleep(200000);
+            
             std::string chmod_cmd = "chmod -R 777 /sys/class/pwm/pwmchip" + std::to_string(chip_idx_);
             int res = system(chmod_cmd.c_str());
-            (void)res; // Suppress unused warning
+            (void)res;
 
-            // Set period to 1kHz
             std::ofstream per(pwm_path_ + "/period");
             if (per.is_open()) { per << 1000000 << std::endl; per.close(); }
-            else { RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "Still locked out of period for Pin %d!", board_pin); }
             
-            // Enable channel
             std::ofstream en(pwm_path_ + "/enable");
             if (en.is_open()) { en << 1 << std::endl; en.close(); }
             
-            RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Mapped Pin %d to pwmchip%d with 777 override.", board_pin, chip_idx_);
+            duty_fd_ = open((pwm_path_ + "/duty_cycle").c_str(), O_WRONLY);
+            RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Mapped Pin %d to pwmchip%d (RT Safe FD: %d)", board_pin, chip_idx_, duty_fd_);
         }
     }
 
+    ~SysfsPWM() { if (duty_fd_ != -1) close(duty_fd_); }
+
     void set_duty(double percent) {
-        if (chip_idx_ == -1) return;
+        if (duty_fd_ == -1) return;
         int duty_ns = (percent / 100.0) * 1000000; 
-        std::ofstream duty(pwm_path_ + "/duty_cycle");
-        if (duty.is_open()) { duty << duty_ns << std::endl; }
+        char buf[32];
+        int len = snprintf(buf, sizeof(buf), "%d\n", duty_ns);
+        pwrite(duty_fd_, buf, len, 0); 
     }
 };
 
@@ -87,7 +86,6 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_init(const hardwa
   steering_serial_port_ = info_.hardware_parameters["steering_serial_port"];
   pwm_left_pin_ = std::stoi(info_.hardware_parameters["pwm_left_pin"]);
   pwm_right_pin_ = std::stoi(info_.hardware_parameters["pwm_right_pin"]);
-  RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Hardware initialized in Pure C++ Mode.");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -115,22 +113,16 @@ std::vector<hardware_interface::CommandInterface> JetsonCarSystemHardware::expor
 
 hardware_interface::CallbackReturn JetsonCarSystemHardware::on_activate(const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Activating native Kernel drivers...");
-  
-  if (steering_serial_port_.empty()) {
-      steering_serial_port_ = "/dev/ttyACM0"; // Fallback
-  }
+  if (steering_serial_port_.empty()) steering_serial_port_ = "/dev/ttyACM0"; 
   
   if (!open_maestro_serial(steering_serial_port_)) {
-      RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "FATAL: Could not open Maestro USB on %s", steering_serial_port_.c_str());
-  } else {
-      RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Maestro Connected on %s (FD: %d)", steering_serial_port_.c_str(), maestro_fd_);
+      RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "FATAL: Could not open Maestro USB.");
   }
 
   gpio_chip_ = gpiod_chip_open_by_name("gpiochip0");
   if (gpio_chip_) {
-      dir_l_line_ = gpiod_chip_get_line(gpio_chip_, 144); // Pin 7
-      dir_r_line_ = gpiod_chip_get_line(gpio_chip_, 106); // Pin 31
+      dir_l_line_ = gpiod_chip_get_line(gpio_chip_, 144); 
+      dir_r_line_ = gpiod_chip_get_line(gpio_chip_, 106); 
       gpiod_line_request_output(dir_l_line_, "ros2_control", 1);
       gpiod_line_request_output(dir_r_line_, "ros2_control", 1);
   }
@@ -138,7 +130,6 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_activate(const rc
   pwm_right_obj_ = std::make_unique<SysfsPWM>(pwm_right_pin_);
   pwm_left_obj_ = std::make_unique<SysfsPWM>(pwm_left_pin_);
 
-  // Active-low
   if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0);
   if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0);
 
@@ -149,14 +140,11 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_activate(const rc
 
 hardware_interface::CallbackReturn JetsonCarSystemHardware::on_deactivate(const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Deactivating hardware. STOPPING CAR.");
   if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0);
   if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0);
-  
   if (dir_l_line_) gpiod_line_release(dir_l_line_);
   if (dir_r_line_) gpiod_line_release(dir_r_line_);
   if (gpio_chip_) gpiod_chip_close(gpio_chip_);
-
   set_maestro_raw(0, 0); 
   if (maestro_fd_ != -1) { ::close(maestro_fd_); maestro_fd_ = -1; }
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -178,18 +166,21 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
   double max_rad_s = 25.0; 
   static bool motors_enabled_ = false;
   static double last_steering_ = -999.0;
-  
-  // Trackers
   static double last_effort_l_ = -999.0;
   static double last_effort_r_ = -999.0;
+  
+  static int wakeup_delay_ticks_ = 0; // State machine to replace usleep
+  static int heartbeat_counter_ = 0;
 
-  // Maestory kill
+  if (heartbeat_counter_++ % 100 == 0) {
+      RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "[RT Heartbeat] Loop running. Current cmd_vel: %.2f", hw_rl_wheel_cmd_vel_);
+  }
+
   if (std::abs(hw_rl_wheel_cmd_vel_) < 0.01 && std::abs(hw_rr_wheel_cmd_vel_) < 0.01) {
       if (motors_enabled_) {
           set_maestro_raw(1, 0); 
           set_maestro_raw(2, 0); 
           motors_enabled_ = false;
-          RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Motors Disabled (Kill-Switch).");
       }
       if (std::abs(last_effort_l_ - 0.0) > 0.01) {
           if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0);
@@ -201,37 +192,33 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
       }
   } else {
       if (!motors_enabled_) {
-          RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Waking up Maestro Drivers...");
           set_maestro_raw(1, 7000); 
           set_maestro_raw(2, 7000); 
           motors_enabled_ = true;
-          usleep(50000); // 50ms wait
+          wakeup_delay_ticks_ = 3; // 60ms delay
       }
 
-      // Left wheel 
-      double speed_l = hw_rl_wheel_cmd_vel_ / max_rad_s;
-      if (dir_l_line_) gpiod_line_set_value(dir_l_line_, speed_l < 0 ? 0 : 1);
-      
-      double effort_l = std::clamp(std::abs(speed_l) * 100.0, 0.0, 100.0);
-      if (std::abs(effort_l - last_effort_l_) > 0.01) {
-          if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0 - effort_l);
-          last_effort_l_ = effort_l; 
-          RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "L_PWM: Wrote %.1f%% Duty", 100.0 - effort_l);
-      }
+      if (wakeup_delay_ticks_ > 0) {
+          wakeup_delay_ticks_--; // Safely count
+      } else {
+          double speed_l = hw_rl_wheel_cmd_vel_ / max_rad_s;
+          if (dir_l_line_) gpiod_line_set_value(dir_l_line_, speed_l < 0 ? 0 : 1);
+          double effort_l = std::clamp(std::abs(speed_l) * 100.0, 0.0, 100.0);
+          if (std::abs(effort_l - last_effort_l_) > 0.01) {
+              if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0 - effort_l);
+              last_effort_l_ = effort_l; 
+          }
 
-      // Right wheel 
-      double speed_r = hw_rr_wheel_cmd_vel_ / max_rad_s;
-      if (dir_r_line_) gpiod_line_set_value(dir_r_line_, speed_r < 0 ? 0 : 1);
-      
-      double effort_r = std::clamp(std::abs(speed_r) * 100.0, 0.0, 100.0);
-      if (std::abs(effort_r - last_effort_r_) > 0.01) {
-          if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0 - effort_r);
-          last_effort_r_ = effort_r; 
-          RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "R_PWM: Wrote %.1f%% Duty", 100.0 - effort_r);
+          double speed_r = hw_rr_wheel_cmd_vel_ / max_rad_s;
+          if (dir_r_line_) gpiod_line_set_value(dir_r_line_, speed_r < 0 ? 0 : 1);
+          double effort_r = std::clamp(std::abs(speed_r) * 100.0, 0.0, 100.0);
+          if (std::abs(effort_r - last_effort_r_) > 0.01) {
+              if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0 - effort_r);
+              last_effort_r_ = effort_r; 
+          }
       }
   }
 
-  // Steering
   if (std::abs(hw_fl_steering_cmd_pos_ - last_steering_) > 0.001) {
       set_maestro_target(0, hw_fl_steering_cmd_pos_);
       last_steering_ = hw_fl_steering_cmd_pos_;
@@ -242,7 +229,7 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
 
 bool JetsonCarSystemHardware::open_maestro_serial(const std::string & port)
 {
-  maestro_fd_ = open(port.c_str(), O_RDWR | O_NOCTTY);
+  maestro_fd_ = open(port.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
   if (maestro_fd_ == -1) return false;
   struct termios options;
   tcgetattr(maestro_fd_, &options);
