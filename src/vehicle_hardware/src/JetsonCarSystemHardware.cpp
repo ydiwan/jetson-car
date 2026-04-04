@@ -95,20 +95,30 @@ hardware_interface::return_type JetsonCarSystemHardware::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   double max_rad_s = 25.0; 
+  
+  // State trackers
+  static bool motors_enabled_ = false;
+  static double last_steering_ = -999.0;
 
   if (std::abs(hw_rl_wheel_cmd_vel_) < 0.01 && std::abs(hw_rr_wheel_cmd_vel_) < 0.01) {
-      set_maestro_raw(1, 0); 
-      set_maestro_raw(2, 0); 
+      if (motors_enabled_) {
+          set_maestro_raw(1, 0); 
+          set_maestro_raw(2, 0); 
+          motors_enabled_ = false;
+      }
       
       std_msgs::msg::Int32 stop_msg;
       stop_msg.data = 1000;
       if(left_pwm_pub_) left_pwm_pub_->publish(stop_msg);
       if(right_pwm_pub_) right_pwm_pub_->publish(stop_msg);
   } else {
-      set_maestro_raw(1, 7000); 
-      set_maestro_raw(2, 7000); 
+      if (!motors_enabled_) {
+          set_maestro_raw(1, 7000); 
+          set_maestro_raw(2, 7000); 
+          motors_enabled_ = true;
+      }
 
-      // Left wheel
+      // Left wheel 
       double speed_l = hw_rl_wheel_cmd_vel_ / max_rad_s;
       int left_pwm = 1000 - static_cast<int>(std::clamp(std::abs(speed_l), 0.0, 1.0) * 1000.0);
       if (speed_l < 0) left_pwm = -left_pwm;
@@ -126,7 +136,11 @@ hardware_interface::return_type JetsonCarSystemHardware::write(
       if(right_pwm_pub_) right_pwm_pub_->publish(r_msg);
   }
 
-  set_maestro_target(0, hw_fl_steering_cmd_pos_);
+  // Update if steering angle changes
+  if (std::abs(hw_fl_steering_cmd_pos_ - last_steering_) > 0.001) {
+      set_maestro_target(0, hw_fl_steering_cmd_pos_);
+      last_steering_ = hw_fl_steering_cmd_pos_;
+  }
 
   return hardware_interface::return_type::OK;
 }
