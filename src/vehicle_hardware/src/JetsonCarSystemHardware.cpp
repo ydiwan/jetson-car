@@ -116,7 +116,16 @@ std::vector<hardware_interface::CommandInterface> JetsonCarSystemHardware::expor
 hardware_interface::CallbackReturn JetsonCarSystemHardware::on_activate(const rclcpp_lifecycle::State & /*previous_state*/)
 {
   RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Activating native Kernel drivers...");
-  maestro_fd_ = open_maestro_serial(steering_serial_port_);
+  
+  if (steering_serial_port_.empty()) {
+      steering_serial_port_ = "/dev/ttyACM0"; // Fallback
+  }
+  
+  if (!open_maestro_serial(steering_serial_port_)) {
+      RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "FATAL: Could not open Maestro USB on %s", steering_serial_port_.c_str());
+  } else {
+      RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Maestro Connected on %s (FD: %d)", steering_serial_port_.c_str(), maestro_fd_);
+  }
 
   gpio_chip_ = gpiod_chip_open_by_name("gpiochip0");
   if (gpio_chip_) {

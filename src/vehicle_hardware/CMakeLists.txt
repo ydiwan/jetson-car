@@ -27,7 +27,7 @@ ament_target_dependencies(${PROJECT_NAME}
   rclcpp_lifecycle
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC gpiod)
+target_link_libraries(${PROJECT_NAME} gpiod)
 
 pluginlib_export_plugin_description_file(hardware_interface jetson_car_system_hardware.xml)
 

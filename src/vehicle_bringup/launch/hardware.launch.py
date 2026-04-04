@@ -183,7 +183,7 @@ def generate_launch_description():
         # Real Hardware
         real_controller_manager,
         ekf_node,
-        gpio_node,
+        # gpio_node,
         
         # Simulation
         gazebo_sim,
