@@ -104,9 +104,9 @@ class GPIONode(Node):
                 self.pwms_running = False
                 
                 # Set motor PWM pins to high impedance (INPUT)
-                GPIO.setup(self.PWM_R, GPIO.IN)
-                GPIO.setup(self.PWM_L, GPIO.IN)
-                self.get_logger().info('Motor PWM pins set to high impedance')
+                # GPIO.setup(self.PWM_R, GPIO.IN)
+                # GPIO.setup(self.PWM_L, GPIO.IN)
+                # self.get_logger().info('Motor PWM pins set to high impedance')
                 
             except Exception as e:
                 self.get_logger().debug(f'Error during cleanup: {e}')
