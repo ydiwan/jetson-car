@@ -183,14 +183,14 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
   static double last_effort_l_ = -999.0;
   static double last_effort_r_ = -999.0;
 
-  // Maestro kill
+  // Maestory kill
   if (std::abs(hw_rl_wheel_cmd_vel_) < 0.01 && std::abs(hw_rr_wheel_cmd_vel_) < 0.01) {
       if (motors_enabled_) {
           set_maestro_raw(1, 0); 
           set_maestro_raw(2, 0); 
           motors_enabled_ = false;
+          RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Motors Disabled (Kill-Switch).");
       }
-      // Only stop if not already stopped
       if (std::abs(last_effort_l_ - 0.0) > 0.01) {
           if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0);
           last_effort_l_ = 0.0;
@@ -201,9 +201,11 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
       }
   } else {
       if (!motors_enabled_) {
+          RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Waking up Maestro Drivers...");
           set_maestro_raw(1, 7000); 
           set_maestro_raw(2, 7000); 
           motors_enabled_ = true;
+          usleep(50000); // 50ms wait
       }
 
       // Left wheel 
@@ -213,7 +215,8 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
       double effort_l = std::clamp(std::abs(speed_l) * 100.0, 0.0, 100.0);
       if (std::abs(effort_l - last_effort_l_) > 0.01) {
           if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0 - effort_l);
-          last_effort_l_ = effort_l; // Save state
+          last_effort_l_ = effort_l; 
+          RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "L_PWM: Wrote %.1f%% Duty", 100.0 - effort_l);
       }
 
       // Right wheel 
@@ -223,7 +226,8 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
       double effort_r = std::clamp(std::abs(speed_r) * 100.0, 0.0, 100.0);
       if (std::abs(effort_r - last_effort_r_) > 0.01) {
           if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0 - effort_r);
-          last_effort_r_ = effort_r; // Save state
+          last_effort_r_ = effort_r; 
+          RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "R_PWM: Wrote %.1f%% Duty", 100.0 - effort_r);
       }
   }
 
