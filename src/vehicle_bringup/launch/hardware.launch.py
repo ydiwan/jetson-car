@@ -97,7 +97,7 @@ def generate_launch_description():
         name='gpio_node',
         condition=is_real,
         output='screen'
-    ),
+    )
 
     ekf_node = Node(
         package='robot_localization',
