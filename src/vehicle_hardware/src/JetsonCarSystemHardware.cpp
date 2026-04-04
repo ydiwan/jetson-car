@@ -1,101 +1,16 @@
 #include "vehicle_hardware/JetsonCarSystemHardware.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include <std_msgs/msg/int32.hpp>
 
-// Modern Linux hardware i/o
-#include <gpiod.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
-#include <fstream>
 #include <cmath>
 #include <algorithm>
 
 namespace vehicle_hardware
 {
-
-// Native linux pwm driver
-class SysfsPWM {
-    std::string pwm_path_;
-    int chip_idx_ = -1;
-
-public:
-    SysfsPWM(int board_pin) {
-        // Map Jetson Orin Nano board pins to physical memory addresses
-        std::string address;
-        if (board_pin == 32) address = "32e0000.pwm";
-        else if (board_pin == 33) address = "32c0000.pwm";
-        else if (board_pin == 15) address = "3280000.pwm";
-        else {
-            RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "Unsupported PWM pin: %d", board_pin);
-            return;
-        }
-
-        // Find which pwmchip Linux assigned to memory address
-        for (int i = 0; i < 10; ++i) {
-            char path[256], target[256];
-            snprintf(path, sizeof(path), "/sys/class/pwm/pwmchip%d/device", i);
-            ssize_t len = readlink(path, target, sizeof(target)-1);
-            if (len != -1) {
-                target[len] = '\0';
-                if (std::string(target).find(address) != std::string::npos) {
-                    chip_idx_ = i;
-                    break;
-                }
-            }
-        }
-
-        if (chip_idx_ != -1) {
-            pwm_path_ = "/sys/class/pwm/pwmchip" + std::to_string(chip_idx_) + "/pwm0";
-            
-            // Export the PWM channel
-            std::ofstream exp("/sys/class/pwm/pwmchip" + std::to_string(chip_idx_) + "/export");
-            exp << 0 << std::endl; 
-            exp.close();
-            
-            // Wait for Linux udev
-            usleep(100000); 
-            
-            // Set period to 1kHz
-            std::ofstream per(pwm_path_ + "/period");
-            if (!per.is_open()) {
-                RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "FATAL: Could not open period file for Pin %d. Race condition or permissions!", board_pin);
-            } else {
-                per << 1000000 << std::endl; 
-                per.close();
-            }
-            
-            // Enable the PWM channel
-            std::ofstream en(pwm_path_ + "/enable");
-            en << 1 << std::endl; 
-            en.close();
-            
-            RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Mapped Pin %d to pwmchip%d", board_pin, chip_idx_);
-        } else {
-            RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "Failed to find PWM chip for pin %d", board_pin);
-        }
-    }
-
-    void set_duty(double percent) {
-        if (chip_idx_ == -1) return;
-        int duty_ns = (percent / 100.0) * 1000000; // Convert % to nanoseconds
-        std::ofstream duty(pwm_path_ + "/duty_cycle");
-        duty << duty_ns;
-    }
-
-    void stop() {
-        if (chip_idx_ == -1) return;
-        std::ofstream duty(pwm_path_ + "/duty_cycle");
-        duty << 0; duty.close();
-    }
-};
-
-// Global pointers for native drivers
-std::unique_ptr<SysfsPWM> pwm_left_obj_;
-std::unique_ptr<SysfsPWM> pwm_right_obj_;
-struct gpiod_chip *gpio_chip_ = nullptr;
-struct gpiod_line *dir_l_line_ = nullptr;
-struct gpiod_line *dir_r_line_ = nullptr;
 
 hardware_interface::CallbackReturn JetsonCarSystemHardware::on_init(
   const hardware_interface::HardwareInfo & info)
@@ -103,10 +18,13 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_init(
   if (hardware_interface::SystemInterface::on_init(info) != hardware_interface::CallbackReturn::SUCCESS) return hardware_interface::CallbackReturn::ERROR;
 
   steering_serial_port_ = info_.hardware_parameters["steering_serial_port"];
-  pwm_left_pin_ = std::stoi(info_.hardware_parameters["pwm_left_pin"]);
-  pwm_right_pin_ = std::stoi(info_.hardware_parameters["pwm_right_pin"]);
+  
+  // Publisher
+  node_ = std::make_shared<rclcpp::Node>("cpp_pwm_bridge");
+  left_pwm_pub_ = node_->create_publisher<std_msgs::msg::Int32>("gpio/pwm_left", 10);
+  right_pwm_pub_ = node_->create_publisher<std_msgs::msg::Int32>("gpio/pwm_right", 10);
 
-  RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Hardware initialized in Open-Loop mode.");
+  RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Hardware initialized in Hybrid Mode.");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -135,27 +53,9 @@ std::vector<hardware_interface::CommandInterface> JetsonCarSystemHardware::expor
 hardware_interface::CallbackReturn JetsonCarSystemHardware::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Activating native Kernel drivers...");
+  RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Activating Hybrid C++/Python Drivers...");
 
   maestro_fd_ = open_maestro_serial(steering_serial_port_);
-
-  // Initialize modern libgpiod for direction pins (Pin 7 & 31)
-  gpio_chip_ = gpiod_chip_open_by_name("gpiochip0");
-  if (gpio_chip_) {
-      dir_l_line_ = gpiod_chip_get_line(gpio_chip_, 144); // Pin 7
-      dir_r_line_ = gpiod_chip_get_line(gpio_chip_, 106); // Pin 31
-      gpiod_line_request_output(dir_l_line_, "ros2_control", 1);
-      gpiod_line_request_output(dir_r_line_, "ros2_control", 1);
-  } else {
-      RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "Failed to open gpiochip0");
-  }
-
-  // Initialize native sysfs
-  pwm_right_obj_ = std::make_unique<SysfsPWM>(pwm_right_pin_);
-  pwm_left_obj_ = std::make_unique<SysfsPWM>(pwm_left_pin_);
-
-  pwm_right_obj_->set_duty(100.0);
-  pwm_left_obj_->set_duty(100.0);
 
   hw_rl_wheel_cmd_vel_ = 0.0; hw_rr_wheel_cmd_vel_ = 0.0;
   hw_fl_steering_cmd_pos_ = 0.0; hw_fr_steering_cmd_pos_ = 0.0;
@@ -168,12 +68,10 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_deactivate(
 {
   RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Deactivating hardware. STOPPING CAR.");
 
-  if (pwm_left_obj_) pwm_left_obj_->stop();
-  if (pwm_right_obj_) pwm_right_obj_->stop();
-  
-  if (dir_l_line_) gpiod_line_release(dir_l_line_);
-  if (dir_r_line_) gpiod_line_release(dir_r_line_);
-  if (gpio_chip_) gpiod_chip_close(gpio_chip_);
+  std_msgs::msg::Int32 stop_msg;
+  stop_msg.data = 1000;
+  if(left_pwm_pub_) left_pwm_pub_->publish(stop_msg);
+  if(right_pwm_pub_) right_pwm_pub_->publish(stop_msg);
 
   set_maestro_target(0, 0.0);
   if (maestro_fd_ != -1) { ::close(maestro_fd_); maestro_fd_ = -1; }
@@ -198,35 +96,36 @@ hardware_interface::return_type JetsonCarSystemHardware::write(
 {
   double max_rad_s = 25.0; 
 
-  // Maestro kill-switch 
   if (std::abs(hw_rl_wheel_cmd_vel_) < 0.01 && std::abs(hw_rr_wheel_cmd_vel_) < 0.01) {
-      set_maestro_raw(1, 0); // Disable Motor L
-      set_maestro_raw(2, 0); // Disable Motor R
+      set_maestro_raw(1, 0); 
+      set_maestro_raw(2, 0); 
       
-      if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0);  // Active-low stop
-      if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0); // Active-low sgop
+      std_msgs::msg::Int32 stop_msg;
+      stop_msg.data = 1000;
+      if(left_pwm_pub_) left_pwm_pub_->publish(stop_msg);
+      if(right_pwm_pub_) right_pwm_pub_->publish(stop_msg);
   } else {
-      set_maestro_raw(1, 7000); // Enable Motor L
-      set_maestro_raw(2, 7000); // Enable Motor R
+      set_maestro_raw(1, 7000); 
+      set_maestro_raw(2, 7000); 
 
       // Left wheel
       double speed_l = hw_rl_wheel_cmd_vel_ / max_rad_s;
-      if (dir_l_line_) gpiod_line_set_value(dir_l_line_, speed_l < 0 ? 0 : 1);
-      
-      // Active-low calculation
-      double effort_l = std::clamp(std::abs(speed_l) * 100.0, 0.0, 100.0);
-      if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0 - effort_l);
+      int left_pwm = 1000 - static_cast<int>(std::clamp(std::abs(speed_l), 0.0, 1.0) * 1000.0);
+      if (speed_l < 0) left_pwm = -left_pwm;
 
       // Right wheel
       double speed_r = hw_rr_wheel_cmd_vel_ / max_rad_s;
-      if (dir_r_line_) gpiod_line_set_value(dir_r_line_, speed_r < 0 ? 0 : 1);
+      int right_pwm = 1000 - static_cast<int>(std::clamp(std::abs(speed_r), 0.0, 1.0) * 1000.0);
+      if (speed_r < 0) right_pwm = -right_pwm;
+
+      std_msgs::msg::Int32 l_msg, r_msg;
+      l_msg.data = left_pwm;
+      r_msg.data = right_pwm;
       
-      // Active-low calculation
-      double effort_r = std::clamp(std::abs(speed_r) * 100.0, 0.0, 100.0);
-      if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0 - effort_r);
+      if(left_pwm_pub_) left_pwm_pub_->publish(l_msg);
+      if(right_pwm_pub_) right_pwm_pub_->publish(r_msg);
   }
 
-  // Steering (Channel 0)
   set_maestro_target(0, hw_fl_steering_cmd_pos_);
 
   return hardware_interface::return_type::OK;

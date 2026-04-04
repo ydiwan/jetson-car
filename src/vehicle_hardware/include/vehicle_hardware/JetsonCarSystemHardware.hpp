@@ -14,6 +14,7 @@
 #include "rclcpp_lifecycle/state.hpp"
 #include "rclcpp/time.hpp"
 #include "rclcpp/duration.hpp"
+#include <std_msgs/msg/int32.hpp>
 
 namespace vehicle_hardware
 {
@@ -67,6 +68,10 @@ private:
   bool open_maestro_serial(const std::string & port);
   void set_maestro_target(int channel, double angle_rad);
   void set_maestro_raw(int channel, int target_q_us);
+
+  rclcpp::Node::SharedPtr node_;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr left_pwm_pub_;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr right_pwm_pub_;
 };
 }  // namespace vehicle_hardware
 

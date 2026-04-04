@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # Compile hardware plugin into shared library
 add_library(${PROJECT_NAME} SHARED
@@ -23,13 +24,13 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-# Link against ROS 2 targets
-target_link_libraries(${PROJECT_NAME} PUBLIC
-  rclcpp::rclcpp
-  hardware_interface::hardware_interface
-  pluginlib::pluginlib
-  rclcpp_lifecycle::rclcpp_lifecycle
-  gpiod
+# Link ROS 2 dependencies
+ament_target_dependencies(${PROJECT_NAME}
+  rclcpp
+  hardware_interface
+  pluginlib
+  rclcpp_lifecycle
+  std_msgs
 )
 
 # Export the plugin XML so the Controller Manager can find it

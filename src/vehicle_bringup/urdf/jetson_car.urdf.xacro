@@ -10,9 +10,9 @@
 
   <xacro:if value="$(arg use_sim)">
     <gazebo>
-      <plugin filename="ign_ros2_control-system" name="ign_ros2_control::IgnitionROS2ControlPlugin">
-        <parameters>$(find vehicle_hardware)/config/controllers.yaml</parameters>
-      </plugin>
+    <plugin filename="libign_ros2_control-system.so" name="ign_ros2_control::IgnitionROS2ControlPlugin">
+      <parameters>$(find vehicle_hardware)/config/controllers.yaml</parameters>
+    </plugin>
       
       <plugin filename="libignition-gazebo-odometry-publisher-system.so" name="ignition::gazebo::systems::OdometryPublisher">
         <odom_frame>odom</odom_frame>
