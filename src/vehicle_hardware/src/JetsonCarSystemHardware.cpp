@@ -157,7 +157,7 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_deactivate(const 
   if (dir_r_line_) gpiod_line_release(dir_r_line_);
   if (gpio_chip_) gpiod_chip_close(gpio_chip_);
 
-  set_maestro_target(0, 0.0);
+  set_maestro_raw(0, 0); 
   if (maestro_fd_ != -1) { ::close(maestro_fd_); maestro_fd_ = -1; }
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -178,16 +178,27 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
   double max_rad_s = 25.0; 
   static bool motors_enabled_ = false;
   static double last_steering_ = -999.0;
+  
+  // Trackers
+  static double last_effort_l_ = -999.0;
+  static double last_effort_r_ = -999.0;
 
-  // Maestro Dynamic Kill-Switch
+  // Maestro kill
   if (std::abs(hw_rl_wheel_cmd_vel_) < 0.01 && std::abs(hw_rr_wheel_cmd_vel_) < 0.01) {
       if (motors_enabled_) {
           set_maestro_raw(1, 0); 
           set_maestro_raw(2, 0); 
           motors_enabled_ = false;
       }
-      if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0);  // Active-low
-      if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0); 
+      // Only stop if not already stopped
+      if (std::abs(last_effort_l_ - 0.0) > 0.01) {
+          if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0);
+          last_effort_l_ = 0.0;
+      }
+      if (std::abs(last_effort_r_ - 0.0) > 0.01) {
+          if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0);
+          last_effort_r_ = 0.0;
+      }
   } else {
       if (!motors_enabled_) {
           set_maestro_raw(1, 7000); 
@@ -195,17 +206,25 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
           motors_enabled_ = true;
       }
 
-      // Left wheel
+      // Left wheel 
       double speed_l = hw_rl_wheel_cmd_vel_ / max_rad_s;
       if (dir_l_line_) gpiod_line_set_value(dir_l_line_, speed_l < 0 ? 0 : 1);
+      
       double effort_l = std::clamp(std::abs(speed_l) * 100.0, 0.0, 100.0);
-      if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0 - effort_l);
+      if (std::abs(effort_l - last_effort_l_) > 0.01) {
+          if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0 - effort_l);
+          last_effort_l_ = effort_l; // Save state
+      }
 
-      // Right wheel
+      // Right wheel 
       double speed_r = hw_rr_wheel_cmd_vel_ / max_rad_s;
       if (dir_r_line_) gpiod_line_set_value(dir_r_line_, speed_r < 0 ? 0 : 1);
+      
       double effort_r = std::clamp(std::abs(speed_r) * 100.0, 0.0, 100.0);
-      if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0 - effort_r);
+      if (std::abs(effort_r - last_effort_r_) > 0.01) {
+          if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0 - effort_r);
+          last_effort_r_ = effort_r; // Save state
+      }
   }
 
   // Steering
