@@ -144,8 +144,8 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_activate(
   pwm_right_obj_ = std::make_unique<SysfsPWM>(pwm_right_pin_);
   pwm_left_obj_ = std::make_unique<SysfsPWM>(pwm_left_pin_);
 
-  pwm_right_obj_->set_duty(0.0);
-  pwm_left_obj_->set_duty(0.0);
+  pwm_right_obj_->set_duty(100.0);
+  pwm_left_obj_->set_duty(100.0);
 
   hw_rl_wheel_cmd_vel_ = 0.0; hw_rr_wheel_cmd_vel_ = 0.0;
   hw_fl_steering_cmd_pos_ = 0.0; hw_fr_steering_cmd_pos_ = 0.0;
@@ -188,17 +188,35 @@ hardware_interface::return_type JetsonCarSystemHardware::write(
 {
   double max_rad_s = 25.0; 
 
-  // Left wheel
-  double speed_l = hw_rl_wheel_cmd_vel_ / max_rad_s;
-  if (dir_l_line_) gpiod_line_set_value(dir_l_line_, speed_l < 0 ? 0 : 1);
-  if (pwm_left_obj_) pwm_left_obj_->set_duty(std::clamp(std::abs(speed_l) * 100.0, 0.0, 100.0));
+  // Maestro kill-switch 
+  if (std::abs(hw_rl_wheel_cmd_vel_) < 0.01 && std::abs(hw_rr_wheel_cmd_vel_) < 0.01) {
+      set_maestro_raw(1, 0); // Disable Motor L
+      set_maestro_raw(2, 0); // Disable Motor R
+      
+      if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0);  // Active-low stop
+      if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0); // Active-low sgop
+  } else {
+      set_maestro_raw(1, 7000); // Enable Motor L
+      set_maestro_raw(2, 7000); // Enable Motor R
 
-  // Right wheel
-  double speed_r = hw_rr_wheel_cmd_vel_ / max_rad_s;
-  if (dir_r_line_) gpiod_line_set_value(dir_r_line_, speed_r < 0 ? 0 : 1);
-  if (pwm_right_obj_) pwm_right_obj_->set_duty(std::clamp(std::abs(speed_r) * 100.0, 0.0, 100.0));
+      // Left wheel
+      double speed_l = hw_rl_wheel_cmd_vel_ / max_rad_s;
+      if (dir_l_line_) gpiod_line_set_value(dir_l_line_, speed_l < 0 ? 0 : 1);
+      
+      // Active-low calculation
+      double effort_l = std::clamp(std::abs(speed_l) * 100.0, 0.0, 100.0);
+      if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0 - effort_l);
 
-  // Steering
+      // Right wheel
+      double speed_r = hw_rr_wheel_cmd_vel_ / max_rad_s;
+      if (dir_r_line_) gpiod_line_set_value(dir_r_line_, speed_r < 0 ? 0 : 1);
+      
+      // Active-low calculation
+      double effort_r = std::clamp(std::abs(speed_r) * 100.0, 0.0, 100.0);
+      if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0 - effort_r);
+  }
+
+  // Steering (Channel 0)
   set_maestro_target(0, hw_fl_steering_cmd_pos_);
 
   return hardware_interface::return_type::OK;
@@ -214,6 +232,15 @@ bool JetsonCarSystemHardware::open_maestro_serial(const std::string & port)
   options.c_oflag &= ~OPOST;                          
   tcsetattr(maestro_fd_, TCSANOW, &options);
   return true;
+}
+
+void JetsonCarSystemHardware::set_maestro_raw(int channel, int target_q_us)
+{
+  if (maestro_fd_ == -1) return;
+  unsigned char command[] = { 0x84, static_cast<unsigned char>(channel), 
+                              static_cast<unsigned char>(target_q_us & 0x7F), 
+                              static_cast<unsigned char>((target_q_us >> 7) & 0x7F) };
+  ::write(maestro_fd_, command, sizeof(command));
 }
 
 void JetsonCarSystemHardware::set_maestro_target(int channel, double angle_rad)

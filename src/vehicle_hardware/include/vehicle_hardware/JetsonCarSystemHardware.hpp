@@ -66,6 +66,7 @@ private:
   // Private IO Helpers 
   bool open_maestro_serial(const std::string & port);
   void set_maestro_target(int channel, double angle_rad);
+  void set_maestro_raw(int channel, int target_q_us);
 };
 }  // namespace vehicle_hardware
 
