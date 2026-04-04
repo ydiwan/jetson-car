@@ -11,9 +11,9 @@ find_package(rclcpp REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
-find_package(JetsonGPIO REQUIRED)
+find_library(GPIOD_LIBRARIES gpiod)
 
-# Compile our hardware plugin into a shared library
+# Compile hardware plugin into shared library
 add_library(${PROJECT_NAME} SHARED
   src/JetsonCarSystemHardware.cpp
 )
@@ -24,13 +24,13 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-# Link against modern ROS 2 targets
+# Link against ROS 2 targets
 target_link_libraries(${PROJECT_NAME} PUBLIC
   rclcpp::rclcpp
   hardware_interface::hardware_interface
   pluginlib::pluginlib
   rclcpp_lifecycle::rclcpp_lifecycle
-  JetsonGPIO::JetsonGPIO
+  {PROJECT_NAME} ${GPIOD_LIBRARIES}
 )
 
 # Export the plugin XML so the Controller Manager can find it
