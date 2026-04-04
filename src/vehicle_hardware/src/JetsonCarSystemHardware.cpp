@@ -31,7 +31,7 @@ public:
             return;
         }
 
-        // Find which pwmchip Linux assigned to this memory address
+        // Find which pwmchip Linux assigned to memory address
         for (int i = 0; i < 10; ++i) {
             char path[256], target[256];
             snprintf(path, sizeof(path), "/sys/class/pwm/pwmchip%d/device", i);
@@ -50,15 +50,25 @@ public:
             
             // Export the PWM channel
             std::ofstream exp("/sys/class/pwm/pwmchip" + std::to_string(chip_idx_) + "/export");
-            exp << 0; exp.close();
+            exp << 0 << std::endl; 
+            exp.close();
+            
+            // Wait for Linux udev
+            usleep(100000); 
             
             // Set period to 1kHz
             std::ofstream per(pwm_path_ + "/period");
-            per << 1000000; per.close();
+            if (!per.is_open()) {
+                RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "FATAL: Could not open period file for Pin %d. Race condition or permissions!", board_pin);
+            } else {
+                per << 1000000 << std::endl; 
+                per.close();
+            }
             
             // Enable the PWM channel
             std::ofstream en(pwm_path_ + "/enable");
-            en << 1; en.close();
+            en << 1 << std::endl; 
+            en.close();
             
             RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Mapped Pin %d to pwmchip%d", board_pin, chip_idx_);
         } else {
