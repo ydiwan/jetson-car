@@ -48,7 +48,7 @@ public:
             
             usleep(200000);
             
-            std::string chmod_cmd = "chmod -R 777 /sys/class/pwm/pwmchip" + std::to_string(chip_idx_);
+            std::string chmod_cmd = "chmod -R 777 /sys/class/pwm/pwmchip" + std::to_string(chip_idx_) + " 2>/dev/null";
             int res = system(chmod_cmd.c_str());
             (void)res;
 
@@ -173,7 +173,7 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
   static int heartbeat_counter_ = 0;
 
   if (heartbeat_counter_++ % 100 == 0) {
-      RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "[RT Heartbeat] Loop running. Current cmd_vel: %.2f", hw_rl_wheel_cmd_vel_);
+      RCLCPP_DEBUG(rclcpp::get_logger("JetsonCarSystemHardware"), "Loop running. Current cmd_vel: %.2f", hw_rl_wheel_cmd_vel_);
   }
 
   if (std::abs(hw_rl_wheel_cmd_vel_) < 0.01 && std::abs(hw_rr_wheel_cmd_vel_) < 0.01) {

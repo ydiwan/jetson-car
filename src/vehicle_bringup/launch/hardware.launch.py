@@ -87,6 +87,9 @@ def generate_launch_description():
         package='controller_manager',
         executable='ros2_control_node',
         parameters=[{'robot_description': robot_desc}, controllers_file],
+        remappings=[
+                ('/ackermann_steering_controller/reference_unstamped', '/cmd_vel')
+            ],
         output='screen',
         condition=is_real
     )
@@ -107,6 +110,20 @@ def generate_launch_description():
         output='screen',
         parameters=[ekf_config_path, use_sim_time_param]
     )
+
+    map_odom_lock = Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='static_map_to_odom',
+            arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
+    ),
+    
+    tf_broadcaster = Node(
+            package='sensor_fusion',
+            executable='vicon_converter_node',
+            name='vicon_converter_node',
+            output='screen'
+    ),
 
     # Simulation nodes
     gazebo_sim = IncludeLaunchDescription(
@@ -184,6 +201,8 @@ def generate_launch_description():
         real_controller_manager,
         ekf_node,
         # gpio_node,
+        map_odom_lock,
+        tf_broadcaster,
         
         # Simulation
         gazebo_sim,
