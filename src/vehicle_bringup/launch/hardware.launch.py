@@ -47,6 +47,11 @@ def generate_launch_description():
     # Sim param for xacro
     is_sim_str = PythonExpression(["'true' if '", hardware_type, "' == 'sim' else 'false'"])
 
+    # Gazebo headless handling
+    gz_args_str = PythonExpression([
+        f"'-r {world_file}'", " if '", show_sim, "' == 'true' else ", f"'-r -s {world_file}'"
+    ])
+
     # Compile the URDF
     robot_desc = Command([
         PathJoinSubstitution([FindExecutable(name='xacro')]), ' ',
@@ -128,8 +133,8 @@ def generate_launch_description():
     # Simulation nodes
     gazebo_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(gz_launch_path),
-        launch_arguments={'gz_args': f'-r {world_file}'}.items(),
-        condition=launch_sim_gui_condition
+        launch_arguments={'gz_args': gz_args_str}.items(),
+        condition=is_sim
     )
 
     spawn_entity = Node(

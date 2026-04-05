@@ -4,128 +4,81 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.substitutions import FindPackageShare
 from launch.conditions import LaunchConfigurationEquals
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
-    
-    # Declare launch arguments
+    # Launch Configuration
     hardware_type = LaunchConfiguration('hardware_type', default='real')
     show_sim = LaunchConfiguration('show_sim', default='false')
     enable_nav2 = LaunchConfiguration('enable_nav2', default='true')
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     map_file = LaunchConfiguration('map_file', default='cyber_city_with_brim.yaml')
     
-    # Package Directories
+    use_sim_time_param = {'use_sim_time': use_sim_time}
     bringup_dir = get_package_share_directory('vehicle_bringup')
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
-    
-    # Path to the Nav2 Configuration
     nav2_params_file = os.path.join(bringup_dir, 'config', 'nav2_params.yaml')
-    
-    rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("vehicle_bringup"), "rviz", "nav2.rviz"]
+
+    # LaunchA Args
+    arg_hardware_type = DeclareLaunchArgument('hardware_type', default_value='real')
+    arg_show_sim = DeclareLaunchArgument('show_sim', default_value='true')
+    arg_enable_nav2 = DeclareLaunchArgument('enable_nav2', default_value='true')
+    arg_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='false')
+    arg_map_file = DeclareLaunchArgument('map_file', default_value='cyber_city_with_brim.yaml')
+
+    # Launch hardware and lane detection
+    lane_pipeline_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(bringup_dir, 'launch', '3dlane.launch.py')),
+        launch_arguments=[
+            ('hardware_type', hardware_type),
+            ('use_sim_time', use_sim_time),
+            ('show_sim', show_sim)
+        ]
     )
-    
-    use_sim_time_param = {'use_sim_time': use_sim_time}
-    
+
+    nav2_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(nav2_bringup_dir, 'launch', 'navigation_launch.py')),
+        launch_arguments={
+            'use_sim_time': use_sim_time,
+            'params_file': nav2_params_file,
+            'autostart': 'True'
+        }.items(),
+        condition=LaunchConfigurationEquals('enable_nav2', 'true')
+    )
+
+    # Nodes
+    map_server_node = Node(
+        package='nav2_map_server',
+        executable='map_server',
+        name='map_server',
+        parameters=[
+            {'yaml_filename': PathJoinSubstitution([bringup_dir, 'worlds/materials/textures', map_file])},
+            use_sim_time_param
+        ],
+        output='screen'
+    )
+
+    lifecycle_manager_map_node = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='lifecycle_manager_map',
+        parameters=[{'autostart': True}, {'node_names': ['map_server']}, use_sim_time_param]
+    )
+
     return LaunchDescription([
-        
-        # Add the arguments
-        DeclareLaunchArgument(
-            'hardware_type',
-            default_value='real',
-            description='Type of hardware: "real" or "simulated"'
-        ),
-        DeclareLaunchArgument(
-            'show_sim',
-            default_value='true',
-            description='Whether to launch Gazebo/RViz when in simulated mode'
-        ),
-        DeclareLaunchArgument(
-            'enable_nav2',
-            default_value='true',
-            description='Whether automatic driving will be enabled via Nav2'
-        ),
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='false',
-            description='Use gazebo clock'    
-        ),
-        DeclareLaunchArgument(
-            'map_file',
-            default_value='cyber_city_with_brim.yaml',
-            description='Which track map to load'
-        ),
-        
-        # Base Hardware
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(
-        #         os.path.join(bringup_dir, 'launch', 'hardware.launch.py')
-        #     ),
-        #     launch_arguments=[
-        #         ('hardware_type', hardware_type),
-        #         ('show_sim', show_sim),
-        #         ('use_sim_time', use_sim_time)
-        #     ]
-        # ),
+        # Arguments
+        arg_hardware_type,
+        arg_show_sim,
+        arg_enable_nav2,
+        arg_use_sim_time,
+        arg_map_file,
 
-        # 3D Lane Perception Pipeline
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(bringup_dir, 'launch', '3dlane.launch.py')
-            ),
-            launch_arguments=[
-                ('hardware_type', hardware_type),
-                ('use_sim_time', use_sim_time),
-                ('show_sim', show_sim)
-            ]
-        ),
+        # Launches
+        lane_pipeline_launch,
+        nav2_launch,
 
-        # Nav2 Stack
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(nav2_bringup_dir, 'launch', 'navigation_launch.py')
-            ),
-            launch_arguments={
-                'use_sim_time': use_sim_time,
-                'params_file': nav2_params_file,
-                'autostart': 'True'
-            }.items(),
-            condition=LaunchConfigurationEquals('enable_nav2', 'true')
-        ),
-        
-        # Broadcast the map image to RViz
-        Node(
-            package='nav2_map_server',
-            executable='map_server',
-            name='map_server',
-            parameters=[
-                {'yaml_filename': PathJoinSubstitution([
-                    bringup_dir, 
-                    'worlds/materials/textures', 
-                    LaunchConfiguration('map_file')
-                ])},
-                use_sim_time_param
-            ],
-            output='screen'
-        ),
-
-        # Lifecycle manager specifically to activate the map_server
-        Node(
-            package='nav2_lifecycle_manager',
-            executable='lifecycle_manager',
-            name='lifecycle_manager_map',
-            parameters=[{'autostart': True}, {'node_names': ['map_server']}, use_sim_time_param]
-        ),
-
-        # Static TF to lock the map frame to the odom frame
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='map_to_odom_tf',
-            arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'map', 'odom'],
-            output='screen'
-        ),
+        # Nodes
+        map_server_node,
+        lifecycle_manager_map_node
     ])
