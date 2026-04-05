@@ -116,14 +116,14 @@ def generate_launch_description():
             executable='static_transform_publisher',
             name='static_map_to_odom',
             arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
-    ),
+    )
     
     tf_broadcaster = Node(
             package='sensor_fusion',
             executable='vicon_converter_node',
             name='vicon_converter_node',
             output='screen'
-    ),
+    )
 
     # Simulation nodes
     gazebo_sim = IncludeLaunchDescription(
