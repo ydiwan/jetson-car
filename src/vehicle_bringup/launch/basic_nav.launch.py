@@ -6,6 +6,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch.conditions import LaunchConfigurationEquals
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import TimerAction
 
 def generate_launch_description():
     # Launch Configuration
@@ -51,6 +52,11 @@ def generate_launch_description():
         condition=LaunchConfigurationEquals('enable_nav2', 'true')
     )
 
+    delayed_nav2_launch = TimerAction(
+        period=8.0, 
+        actions=[nav2_launch]
+    )
+    
     # Nodes
     map_server_node = Node(
         package='nav2_map_server',
@@ -81,7 +87,7 @@ def generate_launch_description():
 
         # Launches
         lane_pipeline_launch,
-        nav2_launch,
+        delayed_nav2_launch,
 
         # Nodes
         map_server_node,

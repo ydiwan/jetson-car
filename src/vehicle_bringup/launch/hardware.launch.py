@@ -7,6 +7,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch.actions import TimerAction
 
 def generate_launch_description():
     
@@ -122,14 +123,16 @@ def generate_launch_description():
             package='tf2_ros',
             executable='static_transform_publisher',
             name='static_map_to_odom',
-            arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom']
+            arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
+            parameters=[use_sim_time_param]
     )
     
     tf_broadcaster = Node(
             package='sensor_fusion',
             executable='vicon_converter_node',
             name='vicon_converter_node',
-            output='screen'
+            output='screen',
+            condition=is_real
     )
 
     # Simulation nodes
