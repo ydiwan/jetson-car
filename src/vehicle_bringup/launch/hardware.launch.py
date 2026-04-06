@@ -32,6 +32,7 @@ def generate_launch_description():
     ekf_config_path = os.path.join(sensor_fusion_dir, 'config', 'ekf.yaml')
     rviz_config_file = PathJoinSubstitution([bringup_dir, 'rviz', rviz_config])
     controllers_file = os.path.join(hardware_dir, 'config', 'controllers.yaml')
+    joy_config_file = os.path.join(pkg_hardware, 'config', 'logitech_f710.yaml')
     
     try:
         gz_launch_path = os.path.join(get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')
@@ -96,7 +97,8 @@ def generate_launch_description():
         executable='ros2_control_node',
         parameters=[{'robot_description': robot_desc}, controllers_file],
         remappings=[
-                ('/ackermann_steering_controller/reference_unstamped', '/cmd_vel')
+                ('/ackermann_steering_controller/reference_unstamped', 
+                 '/ackermann_steering_controller/cmd_vel')
             ],
         output='screen',
         condition=is_real
@@ -135,6 +137,29 @@ def generate_launch_description():
             condition=is_real
     )
 
+    joy_node = Node(
+        package='joy',
+        executable='joy_node',
+        name='joy_node',
+        condition=is_real,
+        parameters=[{
+            'device_id': 0,
+            'deadzone': 0.05,
+            'autorepeat_rate': 20.0,
+        }]
+    )
+
+    teleop_node = Node(
+        package='teleop_twist_joy',
+        executable='teleop_node',
+        name='teleop_twist_joy_node',
+        condition=is_real,
+        parameters=[joy_config_file],
+        remappings=[
+            ('/cmd_vel', '/ackermann_steering_controller/cmd_vel')
+        ]
+    )
+    
     # Simulation nodes
     gazebo_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(gz_launch_path),
