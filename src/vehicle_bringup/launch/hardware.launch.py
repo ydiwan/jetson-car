@@ -32,7 +32,7 @@ def generate_launch_description():
     ekf_config_path = os.path.join(sensor_fusion_dir, 'config', 'ekf.yaml')
     rviz_config_file = PathJoinSubstitution([bringup_dir, 'rviz', rviz_config])
     controllers_file = os.path.join(hardware_dir, 'config', 'controllers.yaml')
-    joy_config_file = os.path.join(pkg_hardware, 'config', 'logitech_f710.yaml')
+    joy_config_file = os.path.join(bringup_dir, 'config', 'logitech_f710.yaml')
     
     try:
         gz_launch_path = os.path.join(get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')
@@ -239,6 +239,8 @@ def generate_launch_description():
         # gpio_node,
         map_odom_lock,
         tf_broadcaster,
+        joy_node,
+        teleop_node,
         
         # Simulation
         gazebo_sim,
