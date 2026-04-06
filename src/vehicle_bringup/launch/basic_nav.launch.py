@@ -14,6 +14,7 @@ def generate_launch_description():
     enable_nav2 = LaunchConfiguration('enable_nav2', default='true')
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     map_file = LaunchConfiguration('map_file', default='cyber_city_with_brim.yaml')
+    rviz_config = LaunchConfiguration('rviz_config', default='nav2.rviz')
     
     use_sim_time_param = {'use_sim_time': use_sim_time}
     bringup_dir = get_package_share_directory('vehicle_bringup')
@@ -22,10 +23,12 @@ def generate_launch_description():
 
     # LaunchA Args
     arg_hardware_type = DeclareLaunchArgument('hardware_type', default_value='real')
-    arg_show_sim = DeclareLaunchArgument('show_sim', default_value='true')
+    arg_show_sim = DeclareLaunchArgument('show_sim', default_value='false')
     arg_enable_nav2 = DeclareLaunchArgument('enable_nav2', default_value='true')
     arg_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='false')
     arg_map_file = DeclareLaunchArgument('map_file', default_value='cyber_city_with_brim.yaml')
+    arg_rviz_config = DeclareLaunchArgument('rviz_config', default_value='nav2.rviz')
+
 
     # Launch hardware and lane detection
     lane_pipeline_launch = IncludeLaunchDescription(
@@ -33,7 +36,8 @@ def generate_launch_description():
         launch_arguments=[
             ('hardware_type', hardware_type),
             ('use_sim_time', use_sim_time),
-            ('show_sim', show_sim)
+            ('show_sim', show_sim),
+            ('rviz_config', rviz_config)
         ]
     )
 
@@ -73,6 +77,7 @@ def generate_launch_description():
         arg_enable_nav2,
         arg_use_sim_time,
         arg_map_file,
+        arg_rviz_config,
 
         # Launches
         lane_pipeline_launch,

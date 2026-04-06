@@ -13,15 +13,17 @@ def generate_launch_description():
     show_sim = LaunchConfiguration('show_sim', default='false')
     enable_drive = LaunchConfiguration('enable_drive', default='false')
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    rviz_config = LaunchConfiguration('rviz_config', default='3dlane.rviz')
 
     use_sim_time_param = {'use_sim_time': use_sim_time}
     bringup_dir = get_package_share_directory('vehicle_bringup')
     
     # Launch Args
-    arg_hardware_type = DeclareLaunchArgument('hardware_type', default_value='real', description='Type of hardware: "real" or "simulated"')
+    arg_hardware_type = DeclareLaunchArgument('hardware_type', default_value='real', description='Type of hardware: "real" or "sim"')
     arg_show_sim = DeclareLaunchArgument('show_sim', default_value='true', description='Launch Gazebo/RViz GUI when in simulated mode')
     arg_enable_drive = DeclareLaunchArgument('enable_drive', default_value='false', description='Whether automatic driving will be enabled')
     arg_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='false', description='Use gazebo clock')
+    arg_rviz_config = DeclareLaunchArgument('rviz_config', default_value='3dlane.rviz', description='RViz config file name')
 
     # Launch hardware
     hardware_launch = IncludeLaunchDescription(
@@ -29,7 +31,8 @@ def generate_launch_description():
         launch_arguments=[
             ('hardware_type', hardware_type),
             ('show_sim', show_sim),
-            ('use_sim_time', use_sim_time)
+            ('use_sim_time', use_sim_time),
+            ('rviz_config', rviz_config)
         ]
     )
 
@@ -66,6 +69,7 @@ def generate_launch_description():
         arg_show_sim,
         arg_enable_drive,
         arg_use_sim_time,
+        arg_rviz_config,
         
         # Launches
         hardware_launch,

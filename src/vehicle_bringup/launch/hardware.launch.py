@@ -18,18 +18,19 @@ def generate_launch_description():
     spawn_z = LaunchConfiguration('z', default='0.15')
     spawn_yaw = LaunchConfiguration('yaw', default='-1.57')
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    rviz_config = LaunchConfiguration('rviz_config', default='hardware.rviz')
     
     use_sim_time_param = {'use_sim_time': use_sim_time}
 
     # Paths and conditions
-    pkg_bringup = get_package_share_directory('vehicle_bringup')
-    pkg_hardware = get_package_share_directory('vehicle_hardware')
-    pkg_sensor_fusion = get_package_share_directory('sensor_fusion')
+    bringup_dir = get_package_share_directory('vehicle_bringup')
+    hardware_dir = get_package_share_directory('vehicle_hardware')
+    sensor_fusion_dir = get_package_share_directory('sensor_fusion')
 
-    world_file = os.path.join(pkg_bringup, 'worlds', 'cyber_city_custom.sdf')
-    ekf_config_path = os.path.join(pkg_sensor_fusion, 'config', 'ekf.yaml')
-    rviz_config_file = os.path.join(pkg_bringup, 'rviz', 'hardware.rviz')
-    controllers_file = os.path.join(pkg_hardware, 'config', 'controllers.yaml')
+    world_file = os.path.join(bringup_dir, 'worlds', 'cyber_city_custom.sdf')
+    ekf_config_path = os.path.join(sensor_fusion_dir, 'config', 'ekf.yaml')
+    rviz_config_file = PathJoinSubstitution([bringup_dir, 'rviz', rviz_config])
+    controllers_file = os.path.join(hardware_dir, 'config', 'controllers.yaml')
     
     try:
         gz_launch_path = os.path.join(get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')
@@ -67,6 +68,7 @@ def generate_launch_description():
     arg_z = DeclareLaunchArgument('z', default_value='0.15', description='Z spawn coordinate')
     arg_yaw = DeclareLaunchArgument('yaw', default_value='-1.57', description='Yaw spawn rotation')
     arg_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='false', description='Use Gazebo clock')
+    arg_rviz_config = DeclareLaunchArgument('rviz_config', default_value='hardware.rviz', description='RViz config file name')
     
     # Always on nodes
     rsp_node = Node(
@@ -197,6 +199,7 @@ def generate_launch_description():
         arg_z,
         arg_yaw,
         arg_use_sim_time,
+        arg_rviz_config,
         
         # Core
         rsp_node,

@@ -38,15 +38,17 @@
         <state_interface name="position"/>
       </joint>
 
-      <joint name="fl_wheel_joint">
-        <state_interface name="position"/>
-        <state_interface name="velocity"/>
-      </joint>
+      <xacro:if value="${use_sim}">
+        <joint name="fl_wheel_joint">
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
 
-      <joint name="fr_wheel_joint">
-        <state_interface name="position"/>
-        <state_interface name="velocity"/>
-      </joint>
+        <joint name="fr_wheel_joint">
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+      </xacro:if>
 
     </ros2_control>
   </xacro:macro>
