@@ -1,13 +1,12 @@
 import os
 from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument,  IncludeLaunchDescription,  TimerAction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.conditions import IfCondition, LaunchConfigurationEquals
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import TimerAction
 
 def generate_launch_description():
     
@@ -20,6 +19,7 @@ def generate_launch_description():
     spawn_yaw = LaunchConfiguration('yaw', default='-1.57')
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     rviz_config = LaunchConfiguration('rviz_config', default='hardware.rviz')
+    use_controller = LaunchConfiguration('use_controller', default='true')
     
     use_sim_time_param = {'use_sim_time': use_sim_time}
 
@@ -32,7 +32,6 @@ def generate_launch_description():
     ekf_config_path = os.path.join(sensor_fusion_dir, 'config', 'ekf.yaml')
     rviz_config_file = PathJoinSubstitution([bringup_dir, 'rviz', rviz_config])
     controllers_file = os.path.join(hardware_dir, 'config', 'controllers.yaml')
-    joy_config_file = os.path.join(bringup_dir, 'config', 'logitech_f710.yaml')
     
     try:
         gz_launch_path = os.path.join(get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')
@@ -45,6 +44,10 @@ def generate_launch_description():
     
     launch_sim_gui_condition = IfCondition(
         PythonExpression(["'", hardware_type, "' == 'sim' and '", show_sim, "' == 'true'"])
+    )
+
+    launch_controller_condition = IfCondition(
+        PythonExpression(["'", hardware_type, "' == 'real' and '", use_controller, "' == 'true'"])
     )
 
     # Sim param for xacro
@@ -62,7 +65,7 @@ def generate_launch_description():
         'use_sim:=', is_sim_str
     ])
 
-    # Declaire Arguments
+    # Declare Arguments
     arg_hardware_type = DeclareLaunchArgument('hardware_type', default_value='real', description='Target hardware: "real" or "sim"')
     arg_show_sim = DeclareLaunchArgument('show_sim', default_value='true', description='Launch Gazebo/RViz GUI (true/false)')
     arg_x = DeclareLaunchArgument('x', default_value='2.4', description='X spawn coordinate')
@@ -71,6 +74,7 @@ def generate_launch_description():
     arg_yaw = DeclareLaunchArgument('yaw', default_value='-1.57', description='Yaw spawn rotation')
     arg_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='false', description='Use Gazebo clock')
     arg_rviz_config = DeclareLaunchArgument('rviz_config', default_value='hardware.rviz', description='RViz config file name')
+    arg_use_controller = DeclareLaunchArgument('use_controller', default_value='true', description='Enable custom USB joystick teleop')
     
     # Always on nodes
     rsp_node = Node(
@@ -137,27 +141,13 @@ def generate_launch_description():
             condition=is_real
     )
 
-    joy_node = Node(
-        package='joy',
+    # Custom Joystick Teleop Node
+    joy_teleop_node = Node(
+        package='sensor_fusion',
         executable='joy_node',
         name='joy_node',
-        condition=is_real,
-        parameters=[{
-            'device_id': 0,
-            'deadzone': 0.05,
-            'autorepeat_rate': 20.0,
-        }]
-    )
-
-    teleop_node = Node(
-        package='teleop_twist_joy',
-        executable='teleop_node',
-        name='teleop_twist_joy_node',
-        condition=is_real,
-        parameters=[joy_config_file],
-        remappings=[
-            ('/cmd_vel', '/ackermann_steering_controller/cmd_vel')
-        ]
+        condition=launch_controller_condition,
+        output='screen'
     )
     
     # Simulation nodes
@@ -228,6 +218,7 @@ def generate_launch_description():
         arg_yaw,
         arg_use_sim_time,
         arg_rviz_config,
+        arg_use_controller,
         
         # Core
         rsp_node,
@@ -239,8 +230,7 @@ def generate_launch_description():
         # gpio_node,
         map_odom_lock,
         tf_broadcaster,
-        joy_node,
-        teleop_node,
+        joy_teleop_node,
         
         # Simulation
         gazebo_sim,
