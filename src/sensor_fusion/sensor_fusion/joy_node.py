@@ -7,7 +7,7 @@ import usb.util
 class JoyNode(Node):
     def __init__(self):
         super().__init__('joy_node')
-        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.publisher_ = self.create_publisher(Twist, '/ackermann_steering_controller/cmd_vel', 10)
 
         # Logitech F710 identifyer
         self.vendor_id = 0x046d
