@@ -75,7 +75,7 @@ class JoyNode(Node):
             msg = Twist()
 
             if lb_pressed:
-                max_speed = 1.0 if rb_pressed else 0.75
+                max_speed = 1.0 if rb_pressed else 0.40
                 msg.linear.x = float(throttle * max_speed)
                 msg.angular.z = float(steering * 2.5)
                 self.get_logger().debug(f"SENDING -> Speed: {msg.linear.x} | Steering: {msg.angular.z}")
