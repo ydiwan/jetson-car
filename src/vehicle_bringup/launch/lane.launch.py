@@ -67,19 +67,6 @@ def generate_launch_description():
         parameters=[use_sim_time_param],
         output='screen'
     )
-    
-    steering_bridge_node = Node(
-        package='vehicle_hardware',
-        executable='steering_bridge_node',
-        name='steering_bridge_node',
-        parameters=[{'speed': 0.3, 'kp': 0.05}, use_sim_time_param],
-        remappings=[
-            ('/cmd_vel', '/ackermann_steering_controller/reference_unstamped'),
-            ('cmd_vel', '/ackermann_steering_controller/reference_unstamped')
-        ],
-        condition=LaunchConfigurationEquals('enable_drive', 'true'),
-        output='screen'
-    )
 
     return LaunchDescription([
         # Arguments
@@ -97,5 +84,4 @@ def generate_launch_description():
         camera_driver_node,
         lane_perception_node,
         ufld_node,
-        steering_bridge_node
     ])

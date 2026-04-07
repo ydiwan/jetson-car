@@ -31,6 +31,7 @@ setup(
             'vicon_converter_node = sensor_fusion.vicon_converter_node:main',
             'sim_ground_truth_node = sensor_fusion.sim_ground_truth_node:main',
             'gpio_node = sensor_fusion.gpio_node:main',
+            'joy_node = sensor_fusion.joy_node:main'
         ],
     },
 )
