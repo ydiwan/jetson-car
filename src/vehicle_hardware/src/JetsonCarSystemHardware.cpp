@@ -42,22 +42,22 @@ public:
 
         if (chip_idx_ != -1) {
             pwm_path_ = "/sys/class/pwm/pwmchip" + std::to_string(chip_idx_) + "/pwm0";
-            
+
             std::ofstream exp("/sys/class/pwm/pwmchip" + std::to_string(chip_idx_) + "/export");
             if (exp.is_open()) { exp << 0 << std::endl; exp.close(); }
-            
+
             usleep(200000);
-            
+
             std::string chmod_cmd = "chmod -R 777 /sys/class/pwm/pwmchip" + std::to_string(chip_idx_) + " 2>/dev/null";
             int res = system(chmod_cmd.c_str());
             (void)res;
 
             std::ofstream per(pwm_path_ + "/period");
             if (per.is_open()) { per << 1000000 << std::endl; per.close(); }
-            
+
             std::ofstream en(pwm_path_ + "/enable");
             if (en.is_open()) { en << 1 << std::endl; en.close(); }
-            
+
             duty_fd_ = open((pwm_path_ + "/duty_cycle").c_str(), O_WRONLY);
             RCLCPP_INFO(rclcpp::get_logger("JetsonCarSystemHardware"), "Mapped Pin %d to pwmchip%d (RT Safe FD: %d)", board_pin, chip_idx_, duty_fd_);
         }
@@ -67,10 +67,10 @@ public:
 
     void set_duty(double percent) {
         if (duty_fd_ == -1) return;
-        int duty_ns = (percent / 100.0) * 1000000; 
+        int duty_ns = (percent / 100.0) * 1000000;
         char buf[32];
         int len = snprintf(buf, sizeof(buf), "%d\n", duty_ns);
-        pwrite(duty_fd_, buf, len, 0); 
+        pwrite(duty_fd_, buf, len, 0);
     }
 };
 
@@ -113,16 +113,16 @@ std::vector<hardware_interface::CommandInterface> JetsonCarSystemHardware::expor
 
 hardware_interface::CallbackReturn JetsonCarSystemHardware::on_activate(const rclcpp_lifecycle::State & /*previous_state*/)
 {
-  if (steering_serial_port_.empty()) steering_serial_port_ = "/dev/ttyACM0"; 
-  
+  if (steering_serial_port_.empty()) steering_serial_port_ = "/dev/ttyACM0";
+
   if (!open_maestro_serial(steering_serial_port_)) {
       RCLCPP_ERROR(rclcpp::get_logger("JetsonCarSystemHardware"), "FATAL: Could not open Maestro USB.");
   }
 
   gpio_chip_ = gpiod_chip_open_by_name("gpiochip0");
   if (gpio_chip_) {
-      dir_l_line_ = gpiod_chip_get_line(gpio_chip_, 144); 
-      dir_r_line_ = gpiod_chip_get_line(gpio_chip_, 106); 
+      dir_l_line_ = gpiod_chip_get_line(gpio_chip_, 144);
+      dir_r_line_ = gpiod_chip_get_line(gpio_chip_, 106);
       gpiod_line_request_output(dir_l_line_, "ros2_control", 1);
       gpiod_line_request_output(dir_r_line_, "ros2_control", 1);
   }
@@ -145,7 +145,7 @@ hardware_interface::CallbackReturn JetsonCarSystemHardware::on_deactivate(const 
   if (dir_l_line_) gpiod_line_release(dir_l_line_);
   if (dir_r_line_) gpiod_line_release(dir_r_line_);
   if (gpio_chip_) gpiod_chip_close(gpio_chip_);
-  set_maestro_raw(0, 0); 
+  set_maestro_raw(0, 0);
   if (maestro_fd_ != -1) { ::close(maestro_fd_); maestro_fd_ = -1; }
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -163,12 +163,12 @@ hardware_interface::return_type JetsonCarSystemHardware::read(const rclcpp::Time
 
 hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
-  double max_rad_s = 25.0; 
+  double max_rad_s = 25.0;
   static bool motors_enabled_ = false;
   static double last_steering_ = -999.0;
   static double last_effort_l_ = -999.0;
   static double last_effort_r_ = -999.0;
-  
+
   static int wakeup_delay_ticks_ = 0; // State machine to replace usleep
   static int heartbeat_counter_ = 0;
 
@@ -178,8 +178,8 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
 
   if (std::abs(hw_rl_wheel_cmd_vel_) < 0.01 && std::abs(hw_rr_wheel_cmd_vel_) < 0.01) {
       if (motors_enabled_) {
-          set_maestro_raw(1, 0); 
-          set_maestro_raw(2, 0); 
+          set_maestro_raw(1, 0);
+          set_maestro_raw(2, 0);
           motors_enabled_ = false;
       }
       if (std::abs(last_effort_l_ - 0.0) > 0.01) {
@@ -192,8 +192,8 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
       }
   } else {
       if (!motors_enabled_) {
-          set_maestro_raw(1, 7000); 
-          set_maestro_raw(2, 7000); 
+          set_maestro_raw(1, 7000);
+          set_maestro_raw(2, 7000);
           motors_enabled_ = true;
           wakeup_delay_ticks_ = 3; // 60ms delay
       }
@@ -206,7 +206,7 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
           double effort_l = std::clamp(std::abs(speed_l) * 100.0, 0.0, 100.0);
           if (std::abs(effort_l - last_effort_l_) > 0.01) {
               if (pwm_left_obj_) pwm_left_obj_->set_duty(100.0 - effort_l);
-              last_effort_l_ = effort_l; 
+              last_effort_l_ = effort_l;
           }
 
           double speed_r = hw_rr_wheel_cmd_vel_ / max_rad_s;
@@ -214,7 +214,7 @@ hardware_interface::return_type JetsonCarSystemHardware::write(const rclcpp::Tim
           double effort_r = std::clamp(std::abs(speed_r) * 100.0, 0.0, 100.0);
           if (std::abs(effort_r - last_effort_r_) > 0.01) {
               if (pwm_right_obj_) pwm_right_obj_->set_duty(100.0 - effort_r);
-              last_effort_r_ = effort_r; 
+              last_effort_r_ = effort_r;
           }
       }
   }
@@ -233,8 +233,8 @@ bool JetsonCarSystemHardware::open_maestro_serial(const std::string & port)
   if (maestro_fd_ == -1) return false;
   struct termios options;
   tcgetattr(maestro_fd_, &options);
-  options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); 
-  options.c_oflag &= ~OPOST;                          
+  options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+  options.c_oflag &= ~OPOST;
   tcsetattr(maestro_fd_, TCSANOW, &options);
   return true;
 }
@@ -249,8 +249,20 @@ void JetsonCarSystemHardware::set_maestro_raw(int channel, int target_q_us)
 void JetsonCarSystemHardware::set_maestro_target(int channel, double angle_rad)
 {
   if (maestro_fd_ == -1) return;
-  double pulse_us = 1500.0 - ((angle_rad / 0.785) * 500.0);
-  pulse_us = std::clamp(pulse_us, 1000.0, 2000.0);
+
+  double pulse_us = 1500.0;
+
+  if (angle_rad > 0.0) {
+      // Turning Left needs higher multiplier (850) to turn left servo same amount to the left
+      pulse_us -= (angle_rad / 0.785) * 850.0;
+  } else {
+      // Turning Right keeps same multipler (500)
+      pulse_us -= (angle_rad / 0.785) * 500.0;
+  }
+
+  // Widen the clamp (turning limit)
+  pulse_us = std::clamp(pulse_us, 800.0, 2200.0);
+
   int target = static_cast<int>(pulse_us * 4.0);
   unsigned char command[] = { 0x84, static_cast<unsigned char>(channel), static_cast<unsigned char>(target & 0x7F), static_cast<unsigned char>((target >> 7) & 0x7F) };
   ::write(maestro_fd_, command, sizeof(command));

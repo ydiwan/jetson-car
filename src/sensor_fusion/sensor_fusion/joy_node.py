@@ -7,9 +7,9 @@ import usb.util
 class JoyNode(Node):
     def __init__(self):
         super().__init__('joy_node')
+        # Publishers
         self.publisher_ = self.create_publisher(Twist, '/ackermann_steering_controller/cmd_vel', 10)
 
-        # Logitech F710 identifyer
         self.vendor_id = 0x046d
         self.product_id = 0xc219
 
@@ -31,6 +31,8 @@ class JoyNode(Node):
 
         # State tracking
         self.analog_mode_warning_printed = False
+        self.last_msg = Twist() # Store the last message
+
         self.get_logger().info("USB Controller Initialized. Ready to drive!")
 
         # Run at 20 Hz
@@ -72,20 +74,21 @@ class JoyNode(Node):
 
             msg = Twist()
 
-            if lb_pressed: # Must hold Deadman to move
-                speed_multiplier = 2.0 if rb_pressed else 1.0
-
-                msg.linear.x = float(throttle * speed_multiplier)
-                msg.angular.z = float(steering * 0.5) # Max 0.5 radians (~28 deg)
-                self.get_logger().info(f"SENDING COMMAND -> Speed: {msg.linear.x} | Steering: {msg.angular.z}")
+            if lb_pressed:
+                max_speed = 1.0 if rb_pressed else 0.75
+                msg.linear.x = float(throttle * max_speed)
+                msg.angular.z = float(steering * 2.5)
+                self.get_logger().debug(f"SENDING -> Speed: {msg.linear.x} | Steering: {msg.angular.z}")
             else:
                 msg.linear.x = 0.0
                 msg.angular.z = 0.0
 
+            self.last_msg = msg
             self.publisher_.publish(msg)
 
         except usb.core.USBError:
-            pass
+            # If no new data comes in, keep publishing the last known command
+            self.publisher_.publish(self.last_msg)
 
 def main(args=None):
     rclpy.init(args=args)

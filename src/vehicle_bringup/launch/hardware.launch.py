@@ -9,7 +9,7 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
-    
+
     # Launch configuration
     hardware_type = LaunchConfiguration('hardware_type', default='real')
     show_sim = LaunchConfiguration('show_sim', default='false')
@@ -20,7 +20,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     rviz_config = LaunchConfiguration('rviz_config', default='hardware.rviz')
     use_controller = LaunchConfiguration('use_controller', default='true')
-    
+
     use_sim_time_param = {'use_sim_time': use_sim_time}
 
     # Paths and conditions
@@ -32,7 +32,7 @@ def generate_launch_description():
     ekf_config_path = os.path.join(sensor_fusion_dir, 'config', 'ekf.yaml')
     rviz_config_file = PathJoinSubstitution([bringup_dir, 'rviz', rviz_config])
     controllers_file = os.path.join(hardware_dir, 'config', 'controllers.yaml')
-    
+
     try:
         gz_launch_path = os.path.join(get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')
     except PackageNotFoundError:
@@ -41,7 +41,7 @@ def generate_launch_description():
     # Conditions
     is_real = LaunchConfigurationEquals('hardware_type', 'real')
     is_sim = LaunchConfigurationEquals('hardware_type', 'sim')
-    
+
     launch_sim_gui_condition = IfCondition(
         PythonExpression(["'", hardware_type, "' == 'sim' and '", show_sim, "' == 'true'"])
     )
@@ -75,7 +75,7 @@ def generate_launch_description():
     arg_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='false', description='Use Gazebo clock')
     arg_rviz_config = DeclareLaunchArgument('rviz_config', default_value='hardware.rviz', description='RViz config file name')
     arg_use_controller = DeclareLaunchArgument('use_controller', default_value='true', description='Enable custom USB joystick teleop')
-    
+
     # Always on nodes
     rsp_node = Node(
         package='robot_state_publisher',
@@ -101,13 +101,14 @@ def generate_launch_description():
         executable='ros2_control_node',
         parameters=[{'robot_description': robot_desc}, controllers_file],
         remappings=[
-                ('/ackermann_steering_controller/reference_unstamped', 
+                ('/ackermann_steering_controller/reference_unstamped',
                  '/ackermann_steering_controller/cmd_vel')
             ],
+        ros_arguments=['--log-level', 'ackermann_steering_controller:=ERROR'],
         output='screen',
         condition=is_real
     )
-    
+
     gpio_node = Node(
         package='sensor_fusion',
         executable='gpio_node',
@@ -132,7 +133,7 @@ def generate_launch_description():
             arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
             parameters=[use_sim_time_param]
     )
-    
+
     tf_broadcaster = Node(
             package='sensor_fusion',
             executable='vicon_converter_node',
@@ -149,7 +150,7 @@ def generate_launch_description():
         condition=launch_controller_condition,
         output='screen'
     )
-    
+
     # Simulation nodes
     gazebo_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(gz_launch_path),
@@ -207,7 +208,7 @@ def generate_launch_description():
             )
         ]
     )
-    
+
     return LaunchDescription([
         # Arguments
         arg_hardware_type,
@@ -219,11 +220,11 @@ def generate_launch_description():
         arg_use_sim_time,
         arg_rviz_config,
         arg_use_controller,
-        
+
         # Core
         rsp_node,
         rviz_node,
-        
+
         # Real Hardware
         real_controller_manager,
         ekf_node,
@@ -231,13 +232,13 @@ def generate_launch_description():
         map_odom_lock,
         tf_broadcaster,
         joy_teleop_node,
-        
+
         # Simulation
         gazebo_sim,
         spawn_entity,
         clock_bridge,
         sim_ground_truth,
-        
+
         # Shared Spawners
         delayed_spawners
     ])
