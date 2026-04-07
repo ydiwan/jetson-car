@@ -16,6 +16,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     map_file = LaunchConfiguration('map_file', default='cyber_city_with_brim.yaml')
     rviz_config = LaunchConfiguration('rviz_config', default='nav2.rviz')
+    use_controller = LaunchConfiguration('use_controller', default='true')
     
     use_sim_time_param = {'use_sim_time': use_sim_time}
     bringup_dir = get_package_share_directory('vehicle_bringup')
@@ -29,6 +30,7 @@ def generate_launch_description():
     arg_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='false')
     arg_map_file = DeclareLaunchArgument('map_file', default_value='cyber_city_with_brim.yaml')
     arg_rviz_config = DeclareLaunchArgument('rviz_config', default_value='nav2.rviz')
+    arg_use_controller = DeclareLaunchArgument('use_controller', default_value='true', description='Enable custom USB joystick teleop')
 
 
     # Launch hardware and lane detection
@@ -38,7 +40,8 @@ def generate_launch_description():
             ('hardware_type', hardware_type),
             ('use_sim_time', use_sim_time),
             ('show_sim', show_sim),
-            ('rviz_config', rviz_config)
+            ('rviz_config', rviz_config),
+            ('use_controller', use_controller)
         ]
     )
 

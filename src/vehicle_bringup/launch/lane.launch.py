@@ -15,6 +15,7 @@ def generate_launch_description():
     enable_drive = LaunchConfiguration('enable_drive', default='true')
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     rviz_config = LaunchConfiguration('rviz_config', default='hardware.rviz')
+    use_controller = LaunchConfiguration('use_controller', default='true')
 
     use_sim_time_param = {'use_sim_time': use_sim_time}
     bringup_dir = get_package_share_directory('vehicle_bringup')
@@ -28,6 +29,7 @@ def generate_launch_description():
     arg_enable_drive = DeclareLaunchArgument('enable_drive', default_value='true')
     arg_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='false')
     arg_rviz_config = DeclareLaunchArgument('rviz_config', default_value='hardware.rviz')
+    arg_use_controller = DeclareLaunchArgument('use_controller', default_value='true', description='Enable custom USB joystick teleop')
 
 
     # Launch Hardware
@@ -37,7 +39,8 @@ def generate_launch_description():
             ('hardware_type', hardware_type),
             ('show_sim', show_sim),
             ('use_sim_time', use_sim_time),
-            ('rviz_config', rviz_config)
+            ('rviz_config', rviz_config),
+            ('use_controller', use_controller)
         ]
     )
 
