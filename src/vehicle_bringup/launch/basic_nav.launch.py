@@ -16,12 +16,12 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     map_file = LaunchConfiguration('map_file', default='cyber_city_with_brim.yaml')
     rviz_config = LaunchConfiguration('rviz_config', default='nav2.rviz')
+    nav2_config = LaunchConfiguration('nav2_config', default='sim_nav2_params.yaml')
     use_controller = LaunchConfiguration('use_controller', default='true')
     
     use_sim_time_param = {'use_sim_time': use_sim_time}
     bringup_dir = get_package_share_directory('vehicle_bringup')
-    nav2_bringup_dir = get_package_share_directory('nav2_bringup')
-    nav2_params_file = os.path.join(bringup_dir, 'config', 'nav2_params.yaml')
+    nav2_params_file = PathJoinSubstitution([bringup_dir, 'config', nav2_config])
 
     # LaunchA Args
     arg_hardware_type = DeclareLaunchArgument('hardware_type', default_value='real')
@@ -30,6 +30,7 @@ def generate_launch_description():
     arg_use_sim_time = DeclareLaunchArgument('use_sim_time', default_value='false')
     arg_map_file = DeclareLaunchArgument('map_file', default_value='cyber_city_with_brim.yaml')
     arg_rviz_config = DeclareLaunchArgument('rviz_config', default_value='nav2.rviz')
+    arg_nav2_config = DeclareLaunchArgument('nav2_config', default_value='sim_nav2_params.yaml')
     arg_use_controller = DeclareLaunchArgument('use_controller', default_value='true', description='Enable custom USB joystick teleop')
 
 
@@ -46,7 +47,7 @@ def generate_launch_description():
     )
 
     nav2_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(nav2_bringup_dir, 'launch', 'navigation_launch.py')),
+        PythonLaunchDescriptionSource(os.path.join(bringup_dir, 'launch', 'nav2_minimal_bringup.launch.py')),
         launch_arguments={
             'use_sim_time': use_sim_time,
             'params_file': nav2_params_file,
@@ -87,6 +88,8 @@ def generate_launch_description():
         arg_use_sim_time,
         arg_map_file,
         arg_rviz_config,
+        arg_nav2_config,
+        arg_use_controller,
 
         # Launches
         lane_pipeline_launch,

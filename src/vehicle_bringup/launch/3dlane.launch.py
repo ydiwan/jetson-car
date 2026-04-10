@@ -73,6 +73,7 @@ def generate_launch_description():
         arg_enable_drive,
         arg_use_sim_time,
         arg_rviz_config,
+        arg_use_controller,
         
         # Launches
         hardware_launch,
