@@ -130,7 +130,16 @@ def generate_launch_description():
             package='tf2_ros',
             executable='static_transform_publisher',
             name='static_map_to_odom',
-            arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
+            arguments=[
+                '--x', '0', 
+                '--y', '0', 
+                '--z', '0', 
+                '--yaw', '1.5708', 
+                '--pitch', '0', 
+                '--roll', '0', 
+                '--frame-id', 'map', 
+                '--child-frame-id', 'odom'
+            ],
             parameters=[use_sim_time_param]
     )
 
