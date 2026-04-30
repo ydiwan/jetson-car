@@ -25,11 +25,13 @@
 
     <model name="cyber_city_3d">
       <static>true</static>
+      <pose>3.048 2.794 0 0 0 -1.570796</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <mesh>
               <uri>materials/meshes/cyber_city.dae</uri>
+              <scale>1.016 1.016 1.016</scale>
             </mesh>
           </geometry>
         </collision>
@@ -37,9 +39,10 @@
           <geometry>
             <mesh>
               <uri>materials/meshes/cyber_city.dae</uri>
+              <scale>1.016 1.016 1.016</scale>
             </mesh>
           </geometry>
-          </visual>
+        </visual>
       </link>
     </model>
   </world>
