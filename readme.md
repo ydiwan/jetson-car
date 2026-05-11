@@ -1,3 +1,5 @@
+# This README is old, from the original Jetson Car project. A new one is in the process of being made. I'm sorry, I'm not the best with documentation.
+
 # Jetson Car
 
 This project uses ROS2 to create an autonomous car for Cyber City, running on a Jetson Orin Nano.
